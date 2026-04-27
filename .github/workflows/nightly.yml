@@ -1,0 +1,39 @@
+name: Nagel Law — Nightly Expense Automation
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 7:00 PM CST = 01:00 UTC
+  workflow_dispatch:        # allows manual run from GitHub UI anytime
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            google-api-python-client \
+            google-auth \
+            openpyxl \
+            anthropic \
+            pillow
+
+      - name: Run expense automation
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          ANTHROPIC_API_KEY:       ${{ secrets.ANTHROPIC_API_KEY }}
+          DRIVE_ROOT_FOLDER_ID:    ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
+          EXCEL_FILE_ID:           ${{ secrets.EXCEL_FILE_ID }}
+          SMTP_USER:               ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:           ${{ secrets.SMTP_PASSWORD }}
+          SUMMARY_EMAIL:           andres@nagellaw.com
+        run: python nagel_automation.py
