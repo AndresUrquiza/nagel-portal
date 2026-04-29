@@ -364,15 +364,14 @@ def get_or_create_sheet(wb, name, headers):
     return ws
 
 
-def first_empty_row(ws, start_row=4):
+def first_empty_row(ws, start_row=3):
     """
     Find the first truly empty row starting from start_row.
     Skips title rows and header rows at the top.
-    Default start_row=4 matches the Excel structure:
+    Default start_row=3 matches the Excel structure:
       Row 1 = Title banner
-      Row 2 = (reserved / blank)
-      Row 3 = Column headers
-      Row 4+ = Data
+      Row 2 = Column headers
+      Row 3+ = Data
     """
     for row_num in range(start_row, ws.max_row + 2):
         row_vals = [ws.cell(row=row_num, column=c).value for c in range(1, 12)]
@@ -381,25 +380,82 @@ def first_empty_row(ws, start_row=4):
     return ws.max_row + 1
 
 
+def is_duplicate(ws, filename, data=None, start_row=4):
+    """
+    Check for duplicates using TWO methods:
+
+    Method 1 — Filename match:
+      If the exact filename already exists in column 10, it's a duplicate.
+
+    Method 2 — Content match (vendor + amount + date):
+      Even if the filename is different, if vendor + amount + date all
+      match an existing row it's the same invoice uploaded twice.
+      Columns: 1=Date, 3=Vendor, 6=Amount
+
+    Returns (True, reason) if duplicate, (False, "") if new.
+    """
+    for row_num in range(start_row, ws.max_row + 1):
+        # Method 1: filename — column 12
+        file_cell = ws.cell(row=row_num, column=12).value
+        if file_cell and str(file_cell).strip() == str(filename).strip():
+            return True, f"Filename already exists in row {row_num}"
+
+        # Method 2: vendor + amount + date
+        # Columns: A=Date(1), E=Vendor(5), H=Amount(8)
+        if data:
+            ex_date   = str(ws.cell(row=row_num, column=1).value or "").strip()
+            ex_vendor = str(ws.cell(row=row_num, column=5).value or "").strip().lower()
+            ex_amount = ws.cell(row=row_num, column=8).value
+
+            new_date   = str(data.get("date", "")).strip()
+            new_vendor = str(data.get("vendor", "")).strip().lower()
+            new_amount = data.get("amount", None)
+
+            if (ex_date and ex_vendor and ex_amount is not None and
+                ex_date == new_date and
+                ex_vendor == new_vendor and
+                abs(float(ex_amount) - float(new_amount)) < 0.01):
+                return True, f"Same vendor+amount+date already in row {row_num} ({ex_vendor} / ${ex_amount} / {ex_date})"
+
+    return False, ""
+
+
 def append_transaction(ws, entity, data, filename):
-    """Append a confirmed row to the first empty row in Transactions sheet."""
+    """
+    Append a confirmed row to the first empty row in Transactions sheet.
+    Column layout (matches Firm_Expense_Tracker.xlsx):
+      A(1)=Date  B(2)=Year  C(3)=Month  D(4)=Entity  E(5)=Vendor
+      F(6)=Category  G(7)=Description  H(8)=Amount(USD)
+      I(9)=Status  J(10)=Source  K(11)=Invoice#  L(12)=Filename
+    """
     row = first_empty_row(ws)
-    ws.cell(row=row, column=1).value  = data["date"]
-    ws.cell(row=row, column=2).value  = entity
-    ws.cell(row=row, column=3).value  = data["vendor"]
-    ws.cell(row=row, column=4).value  = data["category"]
-    ws.cell(row=row, column=5).value  = data.get("description", "")
-    ws.cell(row=row, column=6).value  = data["amount"]
-    ws.cell(row=row, column=7).value  = "Pending"
-    ws.cell(row=row, column=8).value  = "Drive"
-    ws.cell(row=row, column=9).value  = data.get("invoice_number", "N/A")
-    ws.cell(row=row, column=10).value = filename
-    log.info(f"  Written to row {row}")
+    date_str = data.get("date", "")
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        year  = dt.year
+        month = dt.strftime("%B")   # e.g. "January"
+    except Exception:
+        year  = ""
+        month = ""
+
+    ws.cell(row=row, column=1).value  = date_str
+    ws.cell(row=row, column=2).value  = year
+    ws.cell(row=row, column=3).value  = month
+    ws.cell(row=row, column=4).value  = entity
+    ws.cell(row=row, column=5).value  = data.get("vendor", "")
+    ws.cell(row=row, column=6).value  = data.get("category", "")
+    ws.cell(row=row, column=7).value  = data.get("description", "")
+    ws.cell(row=row, column=8).value  = data.get("amount", 0)
+    ws.cell(row=row, column=9).value  = "Pending"
+    ws.cell(row=row, column=10).value = "Drive"
+    ws.cell(row=row, column=11).value = data.get("invoice_number", "N/A")
+    ws.cell(row=row, column=12).value = filename
+    log.info(f"  Written to row {row} — {entity} | {data.get('vendor')} | ${data.get('amount')}")
 
 
 def append_review(ws, entity, data, filename):
     """Append a low-confidence row to the first empty row in Needs Review sheet."""
-    row = first_empty_row(ws)
+    row = first_empty_row(ws, start_row=3)
     ws.cell(row=row, column=1).value  = datetime.today().strftime("%Y-%m-%d")
     ws.cell(row=row, column=2).value  = entity
     ws.cell(row=row, column=3).value  = filename
@@ -536,8 +592,22 @@ def run():
                 results["skipped"].append((folder_name, filename, f"Download error: {e}"))
                 continue
 
+            # Filename-only duplicate check before AI call (saves API cost)
+            dup, reason = is_duplicate(ws_tx, filename)
+            if dup:
+                log.info(f"  → DUPLICATE (filename) — {reason}. Skipping.")
+                results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
+                continue
+
             # AI extraction
             data = extract_invoice_data(file_bytes, filename, folder_name, mime)
+
+            # Content duplicate check after AI extraction (vendor+amount+date)
+            dup, reason = is_duplicate(ws_tx, filename, data=data)
+            if dup:
+                log.info(f"  → DUPLICATE (content) — {reason}. Skipping.")
+                results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
+                continue
             confidence = data.get("confidence", 0)
 
             log.info(f"  Confidence: {confidence*100:.0f}% | "
