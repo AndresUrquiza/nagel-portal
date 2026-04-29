@@ -484,6 +484,22 @@ def get_or_create_sheet(wb, name, headers):
     return ws
 
 
+def update_status_to_paid(ws, row_num, payment_date=None):
+    """
+    When a paid receipt is detected, update Status (col 9) to Paid
+    and record the payment date in col 14.
+    """
+    current = ws.cell(row=row_num, column=9).value
+    if str(current).strip().lower() != "paid":
+        ws.cell(row=row_num, column=9).value = "Paid"
+        if payment_date and str(payment_date) not in ("null", "", "None"):
+            ws.cell(row=row_num, column=14).value = str(payment_date)
+        log.info(f"  → Row {row_num} status updated to Paid"
+                 + (f" | payment date: {payment_date}" if payment_date else ""))
+    else:
+        log.info(f"  → Row {row_num} already marked Paid — no change needed")
+
+
 def first_empty_row(ws, start_row=3):
     """
     Find the first truly empty row starting from start_row.
