@@ -364,11 +364,20 @@ def get_or_create_sheet(wb, name, headers):
     return ws
 
 
-def first_empty_row(ws):
-    """Find the first truly empty row by scanning for actual cell values."""
-    for row in ws.iter_rows():
-        if all(cell.value is None or str(cell.value).strip() == "" for cell in row):
-            return row[0].row
+def first_empty_row(ws, start_row=4):
+    """
+    Find the first truly empty row starting from start_row.
+    Skips title rows and header rows at the top.
+    Default start_row=4 matches the Excel structure:
+      Row 1 = Title banner
+      Row 2 = (reserved / blank)
+      Row 3 = Column headers
+      Row 4+ = Data
+    """
+    for row_num in range(start_row, ws.max_row + 2):
+        row_vals = [ws.cell(row=row_num, column=c).value for c in range(1, 12)]
+        if all(v is None or str(v).strip() == "" for v in row_vals):
+            return row_num
     return ws.max_row + 1
 
 
