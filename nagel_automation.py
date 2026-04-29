@@ -264,7 +264,13 @@ Extract the following information from the document:
    - 0.95+ only if every field is clearly visible and unambiguous
    - 0.80-0.94 if one field is estimated or partially visible
    - below 0.80 if the document is unclear, damaged, or missing key info
-8. notes — if confidence is below 0.90, briefly explain what is unclear
+8. due_date — the payment due date in YYYY-MM-DD format, or null if not found
+9. is_paid — true if the document shows a payment was made (Balance Due = $0.00,
+   or shows a payment line with a negative amount, or is stamped/marked PAID).
+   false if balance is still outstanding.
+10. payment_date — if is_paid is true, the date the payment was made in YYYY-MM-DD,
+    or null if not visible.
+11. notes — if confidence is below 0.90, briefly explain what is unclear
 
 Respond ONLY with a valid JSON object, no markdown, no explanation:
 {{
@@ -274,6 +280,9 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
   "category": "...",
   "invoice_number": "...",
   "description": "...",
+  "due_date": "YYYY-MM-DD or null",
+  "is_paid": false,
+  "payment_date": "YYYY-MM-DD or null",
   "confidence": 0.00,
   "notes": "..."
 }}"""
@@ -343,9 +352,9 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
 
 # ─── Excel helpers ───────────────────────────────────────────────────────────
 TRANSACTIONS_HEADERS = [
-    "Date", "Entity", "Vendor", "Category",
-    "Description", "Amount (USD)", "Status",
-    "Source", "Invoice #", "File Name"
+    "Date", "Year", "Month", "Entity", "Vendor", "Category",
+    "Description", "Amount (USD)", "Status", "Source",
+    "Invoice #", "File Name", "Due Date", "Payment Date"
 ]
 
 REVIEW_HEADERS = [
@@ -400,22 +409,43 @@ def is_duplicate(ws, filename, data=None, start_row=4):
         if file_cell and str(file_cell).strip() == str(filename).strip():
             return True, f"Filename already exists in row {row_num}"
 
-        # Method 2: vendor + amount + date
-        # Columns: A=Date(1), E=Vendor(5), H=Amount(8)
+        # Method 2: vendor + amount + invoice_number (all three must match)
+        #
+        # This is the correct logic:
+        # - Monthly rent: same vendor, same amount, DIFFERENT invoice# → valid, not duplicate
+        # - Same invoice twice: same vendor, same amount, SAME invoice# → duplicate, skip
+        # - Renamed file: same vendor, same amount, SAME invoice# → duplicate, skip
+        #
+        # Invoice# is the unique identifier per invoice.
+        # Vendor is fuzzy-matched (partial) to handle slight name variations.
+        # Amount must match to the cent.
         if data:
-            ex_date   = str(ws.cell(row=row_num, column=1).value or "").strip()
             ex_vendor = str(ws.cell(row=row_num, column=5).value or "").strip().lower()
             ex_amount = ws.cell(row=row_num, column=8).value
+            ex_inv    = str(ws.cell(row=row_num, column=11).value or "").strip()
 
-            new_date   = str(data.get("date", "")).strip()
             new_vendor = str(data.get("vendor", "")).strip().lower()
             new_amount = data.get("amount", None)
+            new_inv    = str(data.get("invoice_number", "")).strip()
 
-            if (ex_date and ex_vendor and ex_amount is not None and
-                ex_date == new_date and
-                ex_vendor == new_vendor and
-                abs(float(ex_amount) - float(new_amount)) < 0.01):
-                return True, f"Same vendor+amount+date already in row {row_num} ({ex_vendor} / ${ex_amount} / {ex_date})"
+            # Skip if invoice number is missing or generic
+            if not ex_inv or not new_inv or ex_inv in ("N/A", "") or new_inv in ("N/A", ""):
+                continue
+
+            if ex_vendor and ex_amount is not None and new_amount is not None:
+                vendor_match = (
+                    ex_vendor == new_vendor or
+                    (len(ex_vendor) > 4 and len(new_vendor) > 4 and
+                     (ex_vendor in new_vendor or new_vendor in ex_vendor))
+                )
+                amount_match = abs(float(ex_amount) - float(new_amount)) < 0.01
+                inv_match    = ex_inv == new_inv
+
+                if vendor_match and amount_match and inv_match:
+                    return True, (
+                        f"Duplicate in row {row_num} — "
+                        f"vendor: '{ex_vendor}' / amount: ${ex_amount} / invoice#: {ex_inv}"
+                    )
 
     return False, ""
 
@@ -438,6 +468,10 @@ def append_transaction(ws, entity, data, filename):
         year  = ""
         month = ""
 
+    due_date = data.get("due_date", None)
+    if due_date == "null" or due_date == "":
+        due_date = None
+
     ws.cell(row=row, column=1).value  = date_str
     ws.cell(row=row, column=2).value  = year
     ws.cell(row=row, column=3).value  = month
@@ -450,7 +484,8 @@ def append_transaction(ws, entity, data, filename):
     ws.cell(row=row, column=10).value = "Drive"
     ws.cell(row=row, column=11).value = data.get("invoice_number", "N/A")
     ws.cell(row=row, column=12).value = filename
-    log.info(f"  Written to row {row} — {entity} | {data.get('vendor')} | ${data.get('amount')}")
+    ws.cell(row=row, column=13).value = due_date
+    log.info(f"  Written to row {row} — {entity} | {data.get('vendor')} | ${data.get('amount')} | due: {due_date}")
 
 
 def append_review(ws, entity, data, filename):
@@ -593,7 +628,7 @@ def run():
                 continue
 
             # Filename-only duplicate check before AI call (saves API cost)
-            dup, reason = is_duplicate(ws_tx, filename)
+            dup, reason, dup_row = is_duplicate(ws_tx, filename)
             if dup:
                 log.info(f"  → DUPLICATE (filename) — {reason}. Skipping.")
                 results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
@@ -602,11 +637,22 @@ def run():
             # AI extraction
             data = extract_invoice_data(file_bytes, filename, folder_name, mime)
 
-            # Content duplicate check after AI extraction (vendor+amount+date)
-            dup, reason = is_duplicate(ws_tx, filename, data=data)
+            # Content duplicate check after AI extraction (vendor+amount+invoice#)
+            dup, reason, dup_row = is_duplicate(ws_tx, filename, data=data)
             if dup:
-                log.info(f"  → DUPLICATE (content) — {reason}. Skipping.")
-                results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
+                # Check if this is a paid receipt — if so, update status
+                is_paid = data.get("is_paid", False)
+                payment_date = data.get("payment_date", None)
+                if is_paid and dup_row:
+                    log.info(f"  → PAID RECEIPT detected — updating row {dup_row} to Paid.")
+                    update_status_to_paid(ws_tx, dup_row, payment_date)
+                    results["processed"].append((
+                        folder_name, filename,
+                        0, data.get("confidence", 0)
+                    ))
+                else:
+                    log.info(f"  → DUPLICATE — {reason}. Skipping.")
+                    results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
                 continue
             confidence = data.get("confidence", 0)
 
