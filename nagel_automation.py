@@ -105,25 +105,31 @@ def get_drive_service():
 
 # ─── Drive helpers ───────────────────────────────────────────────────────────
 def list_subfolders(drive, parent_id):
-    """Return {name: id} for all subfolders of parent_id."""
+    """Return {name: id} for all subfolders of parent_id. Supports Shared Drives."""
     result = drive.files().list(
         q=f"'{parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
-        fields="files(id, name)"
+        fields="files(id, name)",
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        corpora="allDrives"
     ).execute()
     return {f["name"]: f["id"] for f in result.get("files", [])}
 
 
 def list_files(drive, folder_id):
-    """Return list of file dicts in a folder (non-folders only)."""
+    """Return list of file dicts in a folder. Supports Shared Drives."""
     result = drive.files().list(
         q=f"'{folder_id}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false",
-        fields="files(id, name, mimeType, size)"
+        fields="files(id, name, mimeType, size)",
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True,
+        corpora="allDrives"
     ).execute()
     return result.get("files", [])
 
 
 def ensure_subfolder(drive, parent_id, name):
-    """Get or create a subfolder by name. Returns folder id."""
+    """Get or create a subfolder by name. Supports Shared Drives."""
     existing = list_subfolders(drive, parent_id)
     if name in existing:
         return existing[name]
@@ -132,15 +138,22 @@ def ensure_subfolder(drive, parent_id, name):
         "mimeType": "application/vnd.google-apps.folder",
         "parents": [parent_id]
     }
-    folder = drive.files().create(body=meta, fields="id").execute()
+    folder = drive.files().create(
+        body=meta,
+        fields="id",
+        supportsAllDrives=True
+    ).execute()
     log.info(f"Created subfolder '{name}' in Drive.")
     return folder["id"]
 
 
 def download_file(drive, file_id):
-    """Download a Drive file into a BytesIO buffer."""
+    """Download a Drive file into a BytesIO buffer. Supports Shared Drives."""
     buf = io.BytesIO()
-    request = drive.files().get_media(fileId=file_id)
+    request = drive.files().get_media(
+        fileId=file_id,
+        supportsAllDrives=True
+    )
     downloader = MediaIoBaseDownload(buf, request)
     done = False
     while not done:
@@ -150,24 +163,26 @@ def download_file(drive, file_id):
 
 
 def find_file_in_folder(drive, folder_id, filename):
-    """Search for a file by name inside a folder. Returns file id or None."""
+    """Search for a file by name inside a folder. Supports Shared Drives."""
     result = drive.files().list(
         q=f"'{folder_id}' in parents and name='{filename}' and trashed=false",
         fields="files(id, name)",
         includeItemsFromAllDrives=True,
-        supportsAllDrives=True
+        supportsAllDrives=True,
+        corpora="allDrives"
     ).execute()
     files = result.get("files", [])
     return files[0]["id"] if files else None
 
 
 def move_file(drive, file_id, new_parent_id, old_parent_id):
-    """Move a file to a different folder."""
+    """Move a file to a different folder. Supports Shared Drives."""
     drive.files().update(
         fileId=file_id,
         addParents=new_parent_id,
         removeParents=old_parent_id,
-        fields="id, parents"
+        fields="id, parents",
+        supportsAllDrives=True
     ).execute()
 
 
@@ -405,6 +420,17 @@ def run():
     if not ai_client_check:
         raise ValueError("ANTHROPIC_API_KEY env var not set.")
 
+    # ── Verify root Shared Drive access ──
+    try:
+        root_info = drive.files().get(
+            fileId=DRIVE_ROOT_ID,
+            fields="id, name",
+            supportsAllDrives=True
+        ).execute()
+        log.info(f"Connected to Shared Drive: '{root_info.get('name', 'unknown')}'")
+    except Exception as e:
+        log.warning(f"Could not get root info: {e}")
+
     # ── Download current Excel from Drive ──
     log.info("Downloading Excel from Drive...")
     excel_name = "Firm_Expense_Tracker.xlsx"
@@ -442,13 +468,19 @@ def run():
     }
 
     # ── Process each entity folder ──
+    log.info(f"All subfolders found: {list(subfolders.keys())}")
     for folder_name, folder_id in subfolders.items():
 
         # Skip system folders
         if folder_name.startswith("_") or folder_name.startswith("00_") or folder_name == DONE_FOLDER:
+            log.info(f"Skipping system folder: {folder_name}")
             continue
 
-        log.info(f"Processing folder: {folder_name}")
+        log.info(f"Processing folder: '{folder_name}'")
+        
+        # List files found
+        files_found = list_files(drive, folder_id)
+        log.info(f"  Files in '{folder_name}': {[f['name'] for f in files_found]}")
 
         # Auto-detect new entity
         if folder_name not in ENTITIES:
@@ -460,7 +492,7 @@ def run():
         done_id = ensure_subfolder(drive, folder_id, DONE_FOLDER)
 
         # List files in this entity folder
-        files = list_files(drive, folder_id)
+        files = files_found
         if not files:
             log.info(f"  No files in {folder_name}")
             continue
