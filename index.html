@@ -593,9 +593,10 @@ function renderFirm(){
   } else {ydEl.textContent="First year on record";ydEl.className="kpi-delta flat";ymEl.textContent="";}
 
   const pend=TRANSACTIONS.filter(t=>t.status==="Pending");
-  const pendAmt=pend.reduce((a,t)=>a+t.amount,0);
+  const pendFiltered=TRANSACTIONS.filter(t=>matchPeriod(t,y,m)&&t.status==="Pending");
+  const pendAmt=pendFiltered.reduce((a,t)=>a+t.amount,0);
   document.getElementById("k-pending-amt").textContent=pendAmt>0?fmt$(pendAmt):"$0";
-  document.getElementById("k-pending-meta").textContent=pend.length>0?`${pend.length} invoice${pend.length>1?"s":""} awaiting payment`:"All invoices cleared";
+  document.getElementById("k-pending-meta").textContent=pendFiltered.length>0?`${pendFiltered.length} invoice${pendFiltered.length>1?"s":""} awaiting payment`:"All invoices cleared";
 
   const tc=topCategory(txns);
   if(tc){
@@ -661,7 +662,7 @@ function renderEntity(){
   if(yoy!==null){de.textContent=(yoy>=0?"▲ ":"▼ ")+fmtPct(yoy)+" vs "+(+y-1);de.className="kpi-delta "+(yoy>0?"up":yoy<0?"down":"flat");}
   else{de.textContent="First year on record";de.className="kpi-delta flat";}
 
-  const epend=TRANSACTIONS.filter(t=>t.entity===code&&t.status==="Pending");
+  const epend=TRANSACTIONS.filter(t=>matchPeriod(t,y,m)&&t.entity===code&&t.status==="Pending");
   const epAmt=epend.reduce((a,t)=>a+t.amount,0);
   document.getElementById("e-pending").textContent=epAmt>0?fmt$(epAmt):"$0";
   document.getElementById("e-pending-meta").textContent=epend.length>0?`${epend.length} invoice${epend.length>1?"s":""} pending`:"All cleared";
