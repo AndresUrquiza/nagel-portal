@@ -17,10 +17,15 @@ on:
 jobs:
   run-automation:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write    # allows the job to push data.json back to the repo
+
     steps:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -49,10 +54,16 @@ jobs:
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
           ANTHROPIC_API_KEY:       ${{ secrets.ANTHROPIC_API_KEY }}
           DRIVE_ROOT_FOLDER_ID:    ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
-          EXCEL_FILE_ID:           ${{ secrets.EXCEL_FILE_ID }}
           SMTP_USER:               ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:           ${{ secrets.SMTP_PASSWORD }}
           SUMMARY_EMAIL:           andres@nagellaw.com
-          GITHUB_TOKEN:            ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO:             AndresUrquiza/nagel-portal
         run: python nagel_automation.py
+
+      - name: Commit and push data.json to repo
+        if: ${{ github.event.inputs.mode != 'diagnostic' }}
+        run: |
+          git config user.name  "Nagel Automation"
+          git config user.email "automation@nagellaw.com"
+          git add data.json
+          git diff --staged --quiet || git commit -m "Auto-update portal data $(date +'%Y-%m-%d %H:%M')"
+          git push
