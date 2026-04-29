@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Run mode: "normal" to process invoices, "diagnostic" to just check Drive access'
+        description: 'Run mode'
         required: true
         default: 'normal'
         type: choice
@@ -53,4 +53,6 @@ jobs:
           SMTP_USER:               ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD:           ${{ secrets.SMTP_PASSWORD }}
           SUMMARY_EMAIL:           andres@nagellaw.com
+          GITHUB_TOKEN:            ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO:             AndresUrquiza/nagel-portal
         run: python nagel_automation.py
