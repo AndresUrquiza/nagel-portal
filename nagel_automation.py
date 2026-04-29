@@ -62,7 +62,9 @@ ENTITIES = ["AFLE", "GT Nevis", "GT Bank", "Nagel & Associates"]
 UNRECOGNIZED_FOLDER = "_Unrecognized"
 DONE_FOLDER = "done"
 CONFIDENCE_THRESHOLD = 0.90
-SUMMARY_EMAIL = os.environ.get("SUMMARY_EMAIL", "andres@nagellaw.com")
+SUMMARY_EMAIL   = os.environ.get("SUMMARY_EMAIL", "andres@nagellaw.com")
+GITHUB_TOKEN    = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO     = os.environ.get("GITHUB_REPO", "")
 DRIVE_ROOT_ID = os.environ.get("DRIVE_ROOT_FOLDER_ID", "")
 EXCEL_FILE_ID = os.environ.get("EXCEL_FILE_ID", "")
 
@@ -184,6 +186,115 @@ def move_file(drive, file_id, new_parent_id, old_parent_id):
         fields="id, parents",
         supportsAllDrives=True
     ).execute()
+
+
+def export_portal_json(wb, github_token, repo, output_path="data.json"):
+    """
+    Read the Transactions sheet from the workbook and export
+    a JSON file that the portal reads to show live data.
+    Pushes the file to GitHub via the API so the portal updates automatically.
+    """
+    import json, base64, urllib.request, urllib.error
+
+    ws = wb["Transactions"] if "Transactions" in wb.sheetnames else None
+    if not ws:
+        log.warning("No Transactions sheet found — skipping JSON export.")
+        return
+
+    transactions = []
+    for row_num in range(3, ws.max_row + 1):
+        date_val = ws.cell(row=row_num, column=1).value
+        if not date_val:
+            continue
+        transactions.append({
+            "date":        str(ws.cell(row=row_num, column=1).value  or ""),
+            "year":        str(ws.cell(row=row_num, column=2).value  or ""),
+            "month":       str(ws.cell(row=row_num, column=3).value  or ""),
+            "entity":      str(ws.cell(row=row_num, column=4).value  or ""),
+            "vendor":      str(ws.cell(row=row_num, column=5).value  or ""),
+            "category":    str(ws.cell(row=row_num, column=6).value  or ""),
+            "desc":        str(ws.cell(row=row_num, column=7).value  or ""),
+            "amount":      float(ws.cell(row=row_num, column=8).value or 0),
+            "status":      str(ws.cell(row=row_num, column=9).value  or "Pending"),
+            "source":      str(ws.cell(row=row_num, column=10).value or ""),
+            "inv":         str(ws.cell(row=row_num, column=11).value or ""),
+            "filename":    str(ws.cell(row=row_num, column=12).value or ""),
+            "due_date":    str(ws.cell(row=row_num, column=13).value or ""),
+            "payment_date":str(ws.cell(row=row_num, column=14).value or ""),
+        })
+
+    # Also read Needs Review sheet
+    review = []
+    if "Needs Review" in wb.sheetnames:
+        ws_r = wb["Needs Review"]
+        for row_num in range(3, ws_r.max_row + 1):
+            entity_val = ws_r.cell(row=row_num, column=2).value
+            if not entity_val:
+                continue
+            review.append({
+                "date_processed": str(ws_r.cell(row=row_num, column=1).value or ""),
+                "entity":         str(ws_r.cell(row=row_num, column=2).value or ""),
+                "filename":       str(ws_r.cell(row=row_num, column=3).value or ""),
+                "vendor":         str(ws_r.cell(row=row_num, column=4).value or ""),
+                "amount":         float(ws_r.cell(row=row_num, column=5).value or 0),
+                "date":           str(ws_r.cell(row=row_num, column=6).value or ""),
+                "category":       str(ws_r.cell(row=row_num, column=7).value or ""),
+                "inv":            str(ws_r.cell(row=row_num, column=8).value or ""),
+                "desc":           str(ws_r.cell(row=row_num, column=9).value or ""),
+                "confidence":     str(ws_r.cell(row=row_num, column=10).value or ""),
+                "notes":          str(ws_r.cell(row=row_num, column=11).value or ""),
+                "status":         str(ws_r.cell(row=row_num, column=12).value or ""),
+            })
+
+    payload = {
+        "generated": datetime.today().strftime("%Y-%m-%d %H:%M"),
+        "transactions": transactions,
+        "needs_review": review
+    }
+    json_str = json.dumps(payload, ensure_ascii=False, indent=2)
+
+    if not github_token or not repo:
+        log.warning("GITHUB_TOKEN or GITHUB_REPO not set — skipping JSON push.")
+        # Still write locally for debugging
+        with open(output_path, "w") as f:
+            f.write(json_str)
+        log.info(f"JSON written locally: {len(transactions)} transactions.")
+        return
+
+    # Push to GitHub via API
+    api_url = f"https://api.github.com/repos/{repo}/contents/{output_path}"
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json"
+    }
+
+    # Check if file already exists (need its SHA to update)
+    sha = None
+    try:
+        req = urllib.request.Request(api_url, headers=headers)
+        with urllib.request.urlopen(req) as resp:
+            existing = json.loads(resp.read())
+            sha = existing.get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            log.warning(f"GitHub file check failed: {e}")
+
+    body = {
+        "message": f"Auto-update portal data — {datetime.today().strftime('%Y-%m-%d %H:%M')}",
+        "content": base64.b64encode(json_str.encode()).decode(),
+        "branch": "main"
+    }
+    if sha:
+        body["sha"] = sha
+
+    data = json.dumps(body).encode()
+    req = urllib.request.Request(api_url, data=data, headers=headers, method="PUT")
+    try:
+        with urllib.request.urlopen(req) as resp:
+            log.info(f"Portal data.json pushed to GitHub — {len(transactions)} transactions, {len(review)} needs review.")
+    except Exception as e:
+        log.error(f"Failed to push data.json to GitHub: {e}")
 
 
 def upload_excel(drive, local_path):
@@ -683,6 +794,9 @@ def run():
     # ── Save and upload Excel ──
     wb.save(excel_path)
     upload_excel(drive, excel_path)
+
+    # ── Export portal data to GitHub ──
+    export_portal_json(wb, GITHUB_TOKEN, GITHUB_REPO)
 
     # ── Send summary email ──
     send_summary_email(results)
