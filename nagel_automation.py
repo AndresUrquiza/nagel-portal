@@ -330,27 +330,39 @@ def extract_invoice_data(file_bytes: bytes, filename: str, entity: str, mime_typ
 
 The document was uploaded to the "{entity}" entity folder.
 
-Extract the following information from the document:
+CATEGORY SELECTION RULES — read carefully before choosing:
+- "Rent & Utilities": office space rent, MRLO office provision, utility bills
+- "Professional Services": legal advice, attorney fees, consulting, retainer fees for services (NOT office space)
+- "Taxes & Licenses": government fees, incorporation fees, licence fees (ALHL, TCSP, Class II), stamp duty, filing fees, due diligence fees paid to government
+- "Payroll": salaries, wages, payroll processing
+- "Insurance": malpractice insurance, liability insurance, any insurance premium
+- "Software & Subscriptions": software licences, SaaS subscriptions, online tools
+- "Office Supplies": stationery, printer supplies, office consumables
+- "Travel & Meals": flights, hotels, meals, transportation
+- "Equipment": computers, hardware, furniture, machinery
+- "Bank & Merchant Fees": wire transfer fees, bank charges, credit card processing fees
+- "Marketing": advertising, campaigns, branding
+- "Other": anything that does not fit the above
 
+IMPORTANT RULES:
+1. If an invoice has MULTIPLE line items from different categories, choose the category
+   representing the LARGEST dollar amount on the invoice.
+2. Government application fees, stamp duty, licence fees = "Taxes & Licenses" always.
+3. Monthly office/MRLO retainer = "Rent & Utilities" not Professional Services.
+4. Legal advice and attorney consultation = "Professional Services".
+
+Extract the following:
 1. vendor — the company or person being paid
-2. amount — the total amount in USD (number only, no $ sign)
-3. date — the invoice or transaction date in YYYY-MM-DD format
-4. category — pick the single best match from this list:
-{categories_list}
+2. amount — the TOTAL amount in USD including all taxes and fees (number only, no $ sign)
+3. date — invoice or transaction date in YYYY-MM-DD format
+4. category — pick the single best match using the rules above
 5. invoice_number — the invoice or reference number if present, else "N/A"
-6. description — a short 3-8 word description of what was purchased
-7. confidence — a number from 0.0 to 1.0 representing how certain you are
-   about ALL of the above fields combined. Be strict:
-   - 0.95+ only if every field is clearly visible and unambiguous
-   - 0.80-0.94 if one field is estimated or partially visible
-   - below 0.80 if the document is unclear, damaged, or missing key info
-8. due_date — the payment due date in YYYY-MM-DD format, or null if not found
-9. is_paid — true if the document shows a payment was made (Balance Due = $0.00,
-   or shows a payment line with a negative amount, or is stamped/marked PAID).
-   false if balance is still outstanding.
-10. payment_date — if is_paid is true, the date the payment was made in YYYY-MM-DD,
-    or null if not visible.
-11. notes — if confidence is below 0.90, briefly explain what is unclear
+6. description — a short 5-10 word description of the PRIMARY service or expense
+7. due_date — payment due date in YYYY-MM-DD format, or null if not found
+8. is_paid — true if Balance Due = $0.00 or shows a negative payment line or PAID stamp
+9. payment_date — date payment was made in YYYY-MM-DD, or null
+10. confidence — 0.0 to 1.0. Be strict: 0.95+ only if every field is clear
+11. notes — if confidence below 0.90, briefly explain what is unclear
 
 Respond ONLY with a valid JSON object, no markdown, no explanation:
 {{
@@ -764,6 +776,27 @@ def run():
                     data.get("amount", 0), confidence
                 ))
                 log.info(f"  → Written to Transactions sheet")
+                # Save supplier pattern to memory for future runs
+                try:
+                    import json as _json
+                    sup_file = "suppliers.json"
+                    sups = {}
+                    if os.path.exists(sup_file):
+                        with open(sup_file) as sf:
+                            sups = _json.load(sf)
+                    vname = data.get("vendor","").strip()
+                    sup_key = f"{folder_name}|{vname}"
+                    cat = data.get("category","")
+                    desc = data.get("description","")
+                    if vname and cat:
+                        prev = sups.get(sup_key, "")
+                        entry = f"{cat}: {desc}"
+                        if entry not in prev:
+                            sups[sup_key] = (prev + " | " + entry).strip(" |")
+                        with open(sup_file, "w") as sf:
+                            _json.dump(sups, sf, indent=2)
+                except Exception:
+                    pass
             else:
                 append_review(ws_review, folder_name, data, filename)
                 results["flagged"].append((
