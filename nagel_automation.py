@@ -364,38 +364,46 @@ def get_or_create_sheet(wb, name, headers):
     return ws
 
 
+def first_empty_row(ws):
+    """Find the first truly empty row by scanning for actual cell values."""
+    for row in ws.iter_rows():
+        if all(cell.value is None or str(cell.value).strip() == "" for cell in row):
+            return row[0].row
+    return ws.max_row + 1
+
+
 def append_transaction(ws, entity, data, filename):
-    """Append a confirmed row to the Transactions sheet."""
-    ws.append([
-        data["date"],
-        entity,
-        data["vendor"],
-        data["category"],
-        data.get("description", ""),
-        data["amount"],
-        "Pending",               # default status — Andres updates manually
-        "Drive",
-        data.get("invoice_number", "N/A"),
-        filename
-    ])
+    """Append a confirmed row to the first empty row in Transactions sheet."""
+    row = first_empty_row(ws)
+    ws.cell(row=row, column=1).value  = data["date"]
+    ws.cell(row=row, column=2).value  = entity
+    ws.cell(row=row, column=3).value  = data["vendor"]
+    ws.cell(row=row, column=4).value  = data["category"]
+    ws.cell(row=row, column=5).value  = data.get("description", "")
+    ws.cell(row=row, column=6).value  = data["amount"]
+    ws.cell(row=row, column=7).value  = "Pending"
+    ws.cell(row=row, column=8).value  = "Drive"
+    ws.cell(row=row, column=9).value  = data.get("invoice_number", "N/A")
+    ws.cell(row=row, column=10).value = filename
+    log.info(f"  Written to row {row}")
 
 
 def append_review(ws, entity, data, filename):
-    """Append a low-confidence row to the Needs Review sheet."""
-    ws.append([
-        datetime.today().strftime("%Y-%m-%d"),
-        entity,
-        filename,
-        data.get("vendor", ""),
-        data.get("amount", ""),
-        data.get("date", ""),
-        data.get("category", ""),
-        data.get("invoice_number", ""),
-        data.get("description", ""),
-        f"{data.get('confidence', 0)*100:.0f}%",
-        data.get("notes", ""),
-        "Needs Review"
-    ])
+    """Append a low-confidence row to the first empty row in Needs Review sheet."""
+    row = first_empty_row(ws)
+    ws.cell(row=row, column=1).value  = datetime.today().strftime("%Y-%m-%d")
+    ws.cell(row=row, column=2).value  = entity
+    ws.cell(row=row, column=3).value  = filename
+    ws.cell(row=row, column=4).value  = data.get("vendor", "")
+    ws.cell(row=row, column=5).value  = data.get("amount", "")
+    ws.cell(row=row, column=6).value  = data.get("date", "")
+    ws.cell(row=row, column=7).value  = data.get("category", "")
+    ws.cell(row=row, column=8).value  = data.get("invoice_number", "")
+    ws.cell(row=row, column=9).value  = data.get("description", "")
+    ws.cell(row=row, column=10).value = f"{data.get('confidence', 0)*100:.0f}%"
+    ws.cell(row=row, column=11).value = data.get("notes", "")
+    ws.cell(row=row, column=12).value = "Needs Review"
+    log.info(f"  Written to review row {row}")
 
 
 def ensure_entity_in_excel(ws_entities, entity_name):
@@ -471,8 +479,9 @@ def run():
     log.info(f"All subfolders found: {list(subfolders.keys())}")
     for folder_name, folder_id in subfolders.items():
 
-        # Skip system folders
-        if folder_name.startswith("_") or folder_name.startswith("00_") or folder_name == DONE_FOLDER:
+        # Skip system folders and known non-entity files/folders
+        SKIP_NAMES = {"00_INBOX", "00_UNCATEGORIZED", "Filing Taxonomy", DONE_FOLDER}
+        if folder_name.startswith("_") or folder_name.startswith("00_") or folder_name in SKIP_NAMES:
             log.info(f"Skipping system folder: {folder_name}")
             continue
 
