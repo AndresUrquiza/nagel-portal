@@ -407,7 +407,7 @@ def is_duplicate(ws, filename, data=None, start_row=4):
         # Method 1: filename — column 12
         file_cell = ws.cell(row=row_num, column=12).value
         if file_cell and str(file_cell).strip() == str(filename).strip():
-            return True, f"Filename already exists in row {row_num}"
+            return True, f"Filename already exists in row {row_num}", row_num
 
         # Method 2: vendor + amount + invoice_number (all three must match)
         #
@@ -447,7 +447,7 @@ def is_duplicate(ws, filename, data=None, start_row=4):
                         f"vendor: '{ex_vendor}' / amount: ${ex_amount} / invoice#: {ex_inv}"
                     )
 
-    return False, ""
+    return False, "", None
 
 
 def append_transaction(ws, entity, data, filename):
