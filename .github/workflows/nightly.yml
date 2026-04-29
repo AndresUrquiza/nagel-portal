@@ -3,7 +3,16 @@ name: Nagel Law — Nightly Expense Automation
 on:
   schedule:
     - cron: '0 1 * * *'   # 7:00 PM CST = 01:00 UTC
-  workflow_dispatch:        # allows manual run from GitHub UI anytime
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode: "normal" to process invoices, "diagnostic" to just check Drive access'
+        required: true
+        default: 'normal'
+        type: choice
+        options:
+          - normal
+          - diagnostic
 
 jobs:
   run-automation:
@@ -27,7 +36,15 @@ jobs:
             anthropic \
             pillow
 
-      - name: Run expense automation
+      - name: Run diagnostic (if selected)
+        if: ${{ github.event.inputs.mode == 'diagnostic' }}
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          DRIVE_ROOT_FOLDER_ID:    ${{ secrets.DRIVE_ROOT_FOLDER_ID }}
+        run: python nagel_diagnostic.py
+
+      - name: Run expense automation (normal mode)
+        if: ${{ github.event.inputs.mode != 'diagnostic' }}
         env:
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
           ANTHROPIC_API_KEY:       ${{ secrets.ANTHROPIC_API_KEY }}
