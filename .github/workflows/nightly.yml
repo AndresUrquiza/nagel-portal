@@ -64,6 +64,6 @@ jobs:
         run: |
           git config user.name  "Nagel Automation"
           git config user.email "automation@nagellaw.com"
-          git add data.json
+          git add data.json suppliers.json 2>/dev/null || true
           git diff --staged --quiet || git commit -m "Auto-update portal data $(date +'%Y-%m-%d %H:%M')"
           git push
