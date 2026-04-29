@@ -3,7 +3,7 @@
 nagel_automation.py — Nagel Law Expense Automation
 ===================================================
 Runs nightly at 7:00 PM via GitHub Actions.
- 
+
 What it does:
   1. Scans each entity folder in Google Drive for new documents
   2. Sends each file to Claude AI which extracts: vendor, amount,
@@ -13,10 +13,10 @@ What it does:
   5. Processed files moved to /done subfolder
   6. New entity folders detected automatically — no code changes needed
   7. Summary email sent to andres@nagellaw.com
- 
+
 Setup:
   pip install google-api-python-client google-auth openpyxl anthropic pillow
- 
+
 Environment variables (set in GitHub Actions secrets):
   GOOGLE_CREDENTIALS_JSON  — contents of your service account JSON key file
   ANTHROPIC_API_KEY        — your Anthropic API key
@@ -26,7 +26,7 @@ Environment variables (set in GitHub Actions secrets):
   DRIVE_ROOT_FOLDER_ID     — ID of the "Nagel Law — Intake" Drive folder
   EXCEL_FILE_ID            — ID of Firm_Expense_Tracker.xlsx on Drive
 """
- 
+
 import os
 import io
 import json
@@ -37,18 +37,18 @@ import logging
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
- 
+
 # Google
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
- 
+
 # Excel
 import openpyxl
- 
+
 # Anthropic
 import anthropic
- 
+
 # ─── Logging ────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
@@ -56,7 +56,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 log = logging.getLogger("nagel")
- 
+
 # ─── Config ─────────────────────────────────────────────────────────────────
 ENTITIES = ["AFLE", "GT Nevis", "GT Bank", "Nagel Law"]
 UNRECOGNIZED_FOLDER = "_Unrecognized"
@@ -65,7 +65,7 @@ CONFIDENCE_THRESHOLD = 0.90
 SUMMARY_EMAIL = os.environ.get("SUMMARY_EMAIL", "andres@nagellaw.com")
 DRIVE_ROOT_ID = os.environ.get("DRIVE_ROOT_FOLDER_ID", "")
 EXCEL_FILE_ID = os.environ.get("EXCEL_FILE_ID", "")
- 
+
 SUPPORTED_MIME = {
     "application/pdf",
     "image/jpeg",
@@ -74,7 +74,7 @@ SUPPORTED_MIME = {
     "image/webp",
     "image/tiff",
 }
- 
+
 CATEGORIES = [
     "Payroll",
     "Rent & Utilities",
@@ -89,7 +89,7 @@ CATEGORIES = [
     "Taxes & Licenses",
     "Other",
 ]
- 
+
 # ─── Google Drive client ─────────────────────────────────────────────────────
 def get_drive_service():
     creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
@@ -101,8 +101,8 @@ def get_drive_service():
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     return build("drive", "v3", credentials=creds)
- 
- 
+
+
 # ─── Drive helpers ───────────────────────────────────────────────────────────
 def list_subfolders(drive, parent_id):
     """Return {name: id} for all subfolders of parent_id."""
@@ -111,8 +111,8 @@ def list_subfolders(drive, parent_id):
         fields="files(id, name)"
     ).execute()
     return {f["name"]: f["id"] for f in result.get("files", [])}
- 
- 
+
+
 def list_files(drive, folder_id):
     """Return list of file dicts in a folder (non-folders only)."""
     result = drive.files().list(
@@ -120,8 +120,8 @@ def list_files(drive, folder_id):
         fields="files(id, name, mimeType, size)"
     ).execute()
     return result.get("files", [])
- 
- 
+
+
 def ensure_subfolder(drive, parent_id, name):
     """Get or create a subfolder by name. Returns folder id."""
     existing = list_subfolders(drive, parent_id)
@@ -135,8 +135,8 @@ def ensure_subfolder(drive, parent_id, name):
     folder = drive.files().create(body=meta, fields="id").execute()
     log.info(f"Created subfolder '{name}' in Drive.")
     return folder["id"]
- 
- 
+
+
 def download_file(drive, file_id):
     """Download a Drive file into a BytesIO buffer."""
     buf = io.BytesIO()
@@ -147,8 +147,20 @@ def download_file(drive, file_id):
         _, done = downloader.next_chunk()
     buf.seek(0)
     return buf
- 
- 
+
+
+def find_file_in_folder(drive, folder_id, filename):
+    """Search for a file by name inside a folder. Returns file id or None."""
+    result = drive.files().list(
+        q=f"'{folder_id}' in parents and name='{filename}' and trashed=false",
+        fields="files(id, name)",
+        includeItemsFromAllDrives=True,
+        supportsAllDrives=True
+    ).execute()
+    files = result.get("files", [])
+    return files[0]["id"] if files else None
+
+
 def move_file(drive, file_id, new_parent_id, old_parent_id):
     """Move a file to a different folder."""
     drive.files().update(
@@ -157,57 +169,48 @@ def move_file(drive, file_id, new_parent_id, old_parent_id):
         removeParents=old_parent_id,
         fields="id, parents"
     ).execute()
- 
- 
-def find_excel_in_folder(drive, folder_id, filename="Firm_Expense_Tracker.xlsx"):
-    """Search for the Excel file inside a folder by name."""
-    result = drive.files().list(
-        q=f"'{folder_id}' in parents and name='{filename}' and trashed=false",
-        fields="files(id, name)"
-    ).execute()
-    files = result.get("files", [])
-    return files[0]["id"] if files else None
- 
- 
-def upload_excel(drive, file_id, local_path):
-    """Upload updated Excel back to Drive, replacing the existing file."""
+
+
+def upload_excel(drive, local_path):
+    """
+    Upload updated Excel back to Drive.
+    Searches for the file by name inside the root intake folder.
+    If found — updates it in place.
+    If not found — creates a new one inside the root folder.
+    """
+    excel_name = "Firm_Expense_Tracker.xlsx"
     media = MediaFileUpload(
         local_path,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        resumable=False
     )
-    # First try updating by file_id
-    try:
+
+    # Search for the file by name inside the intake folder
+    found_id = find_file_in_folder(drive, DRIVE_ROOT_ID, excel_name)
+
+    if found_id:
+        log.info(f"Found Excel in Drive (id={found_id}), updating...")
         drive.files().update(
-            fileId=file_id,
-            media_body=media
+            fileId=found_id,
+            media_body=media,
+            supportsAllDrives=True
         ).execute()
-        log.info("Excel file updated on Drive.")
-    except Exception as e:
-        log.warning(f"Could not update by file ID: {e}")
-        # Fallback: search for the file in the root folder and update it
-        found_id = find_excel_in_folder(drive, DRIVE_ROOT_ID)
-        if found_id:
-            log.info(f"Found Excel by name in root folder, updating...")
-            drive.files().update(
-                fileId=found_id,
-                media_body=media
-            ).execute()
-            log.info("Excel file updated on Drive (found by name).")
-        else:
-            # Last resort: create a new file in the root folder
-            log.info("Excel not found — creating new file in root folder...")
-            file_meta = {
-                "name": "Firm_Expense_Tracker.xlsx",
-                "parents": [DRIVE_ROOT_ID]
-            }
-            drive.files().create(
-                body=file_meta,
-                media_body=media,
-                fields="id"
-            ).execute()
-            log.info("New Excel file created in root folder.")
- 
- 
+        log.info("Excel file updated on Drive successfully.")
+    else:
+        log.info("Excel not found in intake folder — creating new file...")
+        file_meta = {
+            "name": excel_name,
+            "parents": [DRIVE_ROOT_ID]
+        }
+        drive.files().create(
+            body=file_meta,
+            media_body=media,
+            fields="id",
+            supportsAllDrives=True
+        ).execute()
+        log.info("New Excel file created in intake folder.")
+
+
 # ─── AI extraction ───────────────────────────────────────────────────────────
 def extract_invoice_data(file_bytes: bytes, filename: str, entity: str, mime_type: str) -> dict:
     """
@@ -216,24 +219,24 @@ def extract_invoice_data(file_bytes: bytes, filename: str, entity: str, mime_typ
     description, confidence, notes
     """
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
- 
+
     # Convert to base64
     b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
- 
+
     # Normalise mime for Claude (HEIC not supported — convert hint)
     claude_mime = mime_type
     if mime_type not in {"image/jpeg", "image/png", "image/gif", "image/webp",
                          "application/pdf"}:
         claude_mime = "image/jpeg"   # fallback — PIL conversion happens below
- 
+
     categories_list = "\n".join(f"- {c}" for c in CATEGORIES)
- 
+
     prompt = f"""You are an expert bookkeeper reviewing a business expense document for Nagel Law.
- 
+
 The document was uploaded to the "{entity}" entity folder.
- 
+
 Extract the following information from the document:
- 
+
 1. vendor — the company or person being paid
 2. amount — the total amount in USD (number only, no $ sign)
 3. date — the invoice or transaction date in YYYY-MM-DD format
@@ -247,7 +250,7 @@ Extract the following information from the document:
    - 0.80-0.94 if one field is estimated or partially visible
    - below 0.80 if the document is unclear, damaged, or missing key info
 8. notes — if confidence is below 0.90, briefly explain what is unclear
- 
+
 Respond ONLY with a valid JSON object, no markdown, no explanation:
 {{
   "vendor": "...",
@@ -259,7 +262,7 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
   "confidence": 0.00,
   "notes": "..."
 }}"""
- 
+
     try:
         if claude_mime == "application/pdf":
             content = [
@@ -285,13 +288,13 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
                 },
                 {"type": "text", "text": prompt}
             ]
- 
+
         response = client.messages.create(
             model="claude-opus-4-6",
             max_tokens=600,
             messages=[{"role": "user", "content": content}]
         )
- 
+
         raw = response.content[0].text.strip()
         # Strip markdown fences if present
         if raw.startswith("```"):
@@ -299,16 +302,16 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
             if raw.startswith("json"):
                 raw = raw[4:]
         data = json.loads(raw.strip())
- 
+
         # Validate required fields
         for key in ["vendor", "amount", "date", "category", "confidence"]:
             if key not in data:
                 raise ValueError(f"Missing field: {key}")
- 
+
         data["amount"] = float(data.get("amount", 0))
         data["confidence"] = float(data.get("confidence", 0))
         return data
- 
+
     except Exception as e:
         log.warning(f"AI extraction failed for {filename}: {e}")
         return {
@@ -321,31 +324,31 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
             "confidence": 0.0,
             "notes": str(e)
         }
- 
- 
+
+
 # ─── Excel helpers ───────────────────────────────────────────────────────────
 TRANSACTIONS_HEADERS = [
     "Date", "Entity", "Vendor", "Category",
     "Description", "Amount (USD)", "Status",
     "Source", "Invoice #", "File Name"
 ]
- 
+
 REVIEW_HEADERS = [
     "Date Processed", "Entity", "File Name",
     "Vendor (AI)", "Amount (AI)", "Date (AI)",
     "Category (AI)", "Invoice # (AI)", "Description (AI)",
     "Confidence", "AI Notes", "Status"
 ]
- 
- 
+
+
 def get_or_create_sheet(wb, name, headers):
     if name in wb.sheetnames:
         return wb[name]
     ws = wb.create_sheet(name)
     ws.append(headers)
     return ws
- 
- 
+
+
 def append_transaction(ws, entity, data, filename):
     """Append a confirmed row to the Transactions sheet."""
     ws.append([
@@ -360,8 +363,8 @@ def append_transaction(ws, entity, data, filename):
         data.get("invoice_number", "N/A"),
         filename
     ])
- 
- 
+
+
 def append_review(ws, entity, data, filename):
     """Append a low-confidence row to the Needs Review sheet."""
     ws.append([
@@ -378,8 +381,8 @@ def append_review(ws, entity, data, filename):
         data.get("notes", ""),
         "Needs Review"
     ])
- 
- 
+
+
 def ensure_entity_in_excel(ws_entities, entity_name):
     """Add entity row to Entities sheet if not already there."""
     existing = [ws_entities.cell(row=r, column=1).value
@@ -389,38 +392,47 @@ def ensure_entity_in_excel(ws_entities, entity_name):
         code = entity_name.upper().replace(" ", "-")[:8]
         ws_entities.append([entity_name, code])
         log.info(f"New entity added to Excel: {entity_name}")
- 
- 
+
+
 # ─── Main pipeline ───────────────────────────────────────────────────────────
 def run():
     log.info("=" * 60)
     log.info("Nagel Law — Expense Automation starting")
     log.info("=" * 60)
- 
+
     drive = get_drive_service()
     ai_client_check = os.environ.get("ANTHROPIC_API_KEY", "")
     if not ai_client_check:
         raise ValueError("ANTHROPIC_API_KEY env var not set.")
- 
+
     # ── Download current Excel from Drive ──
     log.info("Downloading Excel from Drive...")
-    excel_bytes = download_file(drive, EXCEL_FILE_ID)
+    excel_name = "Firm_Expense_Tracker.xlsx"
+    excel_id = find_file_in_folder(drive, DRIVE_ROOT_ID, excel_name)
+    if not excel_id:
+        raise FileNotFoundError(
+            f"Could not find '{excel_name}' inside the Intake folder. "
+            f"Make sure the file is inside the shared 'Nagel Law — Intake' folder "
+            f"and the service account has Editor access to that folder."
+        )
+    log.info(f"Found Excel file (id={excel_id}), downloading...")
+    excel_bytes = download_file(drive, excel_id)
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
         tmp.write(excel_bytes.read())
         excel_path = tmp.name
- 
+
     wb = openpyxl.load_workbook(excel_path)
- 
+
     # Ensure required sheets exist
     ws_tx     = get_or_create_sheet(wb, "Transactions", TRANSACTIONS_HEADERS)
     ws_review = get_or_create_sheet(wb, "Needs Review", REVIEW_HEADERS)
     ws_ents   = get_or_create_sheet(wb, "Entities",
                                     ["Entity Name", "Entity Code"])
- 
+
     # ── Discover entity folders (auto-detects new ones) ──
     log.info("Scanning Drive folder structure...")
     subfolders = list_subfolders(drive, DRIVE_ROOT_ID)
- 
+
     # Track results for summary email
     results = {
         "processed": [],    # (entity, filename, amount, confidence)
@@ -428,44 +440,44 @@ def run():
         "skipped": [],      # (entity, filename, reason)
         "new_entities": []  # entity names auto-detected
     }
- 
+
     # ── Process each entity folder ──
     for folder_name, folder_id in subfolders.items():
- 
+
         # Skip system folders
         if folder_name.startswith("_") or folder_name == DONE_FOLDER:
             continue
- 
+
         log.info(f"Processing folder: {folder_name}")
- 
+
         # Auto-detect new entity
         if folder_name not in ENTITIES:
             log.info(f"New entity detected: {folder_name}")
             results["new_entities"].append(folder_name)
             ensure_entity_in_excel(ws_ents, folder_name)
- 
+
         # Ensure /done subfolder exists
         done_id = ensure_subfolder(drive, folder_id, DONE_FOLDER)
- 
+
         # List files in this entity folder
         files = list_files(drive, folder_id)
         if not files:
             log.info(f"  No files in {folder_name}")
             continue
- 
+
         for f in files:
             filename = f["name"]
             file_id  = f["id"]
             mime     = f.get("mimeType", "")
- 
+
             log.info(f"  Reading: {filename} ({mime})")
- 
+
             # Skip unsupported types
             if mime not in SUPPORTED_MIME:
                 log.warning(f"  Skipping unsupported type: {mime}")
                 results["skipped"].append((folder_name, filename, f"Unsupported type: {mime}"))
                 continue
- 
+
             # Download file
             try:
                 file_bytes = download_file(drive, file_id).read()
@@ -473,15 +485,15 @@ def run():
                 log.error(f"  Download failed: {e}")
                 results["skipped"].append((folder_name, filename, f"Download error: {e}"))
                 continue
- 
+
             # AI extraction
             data = extract_invoice_data(file_bytes, filename, folder_name, mime)
             confidence = data.get("confidence", 0)
- 
+
             log.info(f"  Confidence: {confidence*100:.0f}% | "
                      f"Vendor: {data.get('vendor')} | "
                      f"Amount: ${data.get('amount')}")
- 
+
             # Route based on confidence
             if confidence >= CONFIDENCE_THRESHOLD:
                 append_transaction(ws_tx, folder_name, data, filename)
@@ -497,33 +509,33 @@ def run():
                     data.get("notes", "Low confidence")
                 ))
                 log.info(f"  → Flagged for review (confidence too low)")
- 
+
             # Move file to /done
             move_file(drive, file_id, done_id, folder_id)
             log.info(f"  → Moved to /done")
- 
+
     # ── Save and upload Excel ──
     wb.save(excel_path)
-    upload_excel(drive, EXCEL_FILE_ID, excel_path)
- 
+    upload_excel(drive, excel_path)
+
     # ── Send summary email ──
     send_summary_email(results)
- 
+
     log.info("=" * 60)
     log.info("Run complete.")
     log.info("=" * 60)
- 
- 
+
+
 # ─── Summary email ────────────────────────────────────────────────────────────
 def send_summary_email(results):
     processed = results["processed"]
     flagged   = results["flagged"]
     skipped   = results["skipped"]
     new_ents  = results["new_entities"]
- 
+
     total_amount = sum(r[2] for r in processed)
     today = datetime.today().strftime("%B %d, %Y")
- 
+
     # Plain text
     lines = [
         f"Nagel Law — Nightly Expense Report",
@@ -534,7 +546,7 @@ def send_summary_email(results):
     ]
     for entity, fname, amount, conf in processed:
         lines.append(f"  ✓  [{entity}]  {fname}  —  ${amount:,.2f}  ({conf*100:.0f}% confidence)")
- 
+
     if flagged:
         lines += [
             f"",
@@ -543,7 +555,7 @@ def send_summary_email(results):
         for entity, fname, conf, notes in flagged:
             lines.append(f"  ⚠  [{entity}]  {fname}  —  {conf*100:.0f}%  |  {notes}")
         lines.append(f"  → Open the portal → 'Needs Review' tab to confirm or correct these.")
- 
+
     if new_ents:
         lines += [
             f"",
@@ -551,7 +563,7 @@ def send_summary_email(results):
         ]
         for e in new_ents:
             lines.append(f"  +  {e}  — added to Excel and portal automatically")
- 
+
     if skipped:
         lines += [
             f"",
@@ -559,18 +571,18 @@ def send_summary_email(results):
         ]
         for entity, fname, reason in skipped:
             lines.append(f"  ✗  [{entity}]  {fname}  —  {reason}")
- 
+
     lines += [
         f"",
         f"{'='*48}",
         f"Nagel Law Expense Portal — automated nightly run",
     ]
- 
+
     body_text = "\n".join(lines)
- 
+
     # HTML version
     def row_color(i): return "#f9f9f9" if i % 2 == 0 else "#ffffff"
- 
+
     proc_rows = "".join(
         f'<tr style="background:{row_color(i)}">'
         f'<td style="padding:6px 10px">{entity}</td>'
@@ -580,7 +592,7 @@ def send_summary_email(results):
         f'</tr>'
         for i, (entity, fname, amount, conf) in enumerate(processed)
     ) if processed else '<tr><td colspan="4" style="padding:10px;color:#aaa;text-align:center">No documents processed tonight</td></tr>'
- 
+
     flag_rows = "".join(
         f'<tr style="background:{row_color(i)}">'
         f'<td style="padding:6px 10px">{entity}</td>'
@@ -590,14 +602,14 @@ def send_summary_email(results):
         f'</tr>'
         for i, (entity, fname, conf, notes) in enumerate(flagged)
     ) if flagged else ""
- 
+
     new_ent_section = ""
     if new_ents:
         items = "".join(f'<li style="margin:4px 0">{e} — added automatically</li>' for e in new_ents)
         new_ent_section = f"""
         <h3 style="color:#1a2f5a;margin:24px 0 8px">New Entities Detected</h3>
         <ul style="margin:0;padding-left:20px;color:#374151">{items}</ul>"""
- 
+
     flagged_section = ""
     if flagged:
         flagged_section = f"""
@@ -616,7 +628,7 @@ def send_summary_email(results):
           </thead>
           <tbody>{flag_rows}</tbody>
         </table>"""
- 
+
     body_html = f"""
     <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:640px;margin:0 auto;color:#1a1a1a">
       <div style="background:#1a2f5a;padding:24px 28px;border-radius:10px 10px 0 0">
@@ -629,7 +641,7 @@ def send_summary_email(results):
         <span style="font-size:13px;color:#888">{today}</span>
       </div>
       <div style="background:#fff;padding:24px 28px;border:1px solid #e4e7f0;border-top:none">
- 
+
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px">
           <div style="background:#f6f7fb;border-radius:8px;padding:14px 16px;border:1px solid #e4e7f0">
             <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Processed</div>
@@ -647,7 +659,7 @@ def send_summary_email(results):
             <div style="font-size:11px;color:#9ca3af;margin-top:3px">below 90% confidence</div>
           </div>
         </div>
- 
+
         <h3 style="color:#1a2f5a;margin:0 0 10px">Processed Tonight ({len(processed)})</h3>
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead>
@@ -660,32 +672,32 @@ def send_summary_email(results):
           </thead>
           <tbody>{proc_rows}</tbody>
         </table>
- 
+
         {flagged_section}
         {new_ent_section}
- 
+
       </div>
       <div style="background:#f6f7fb;padding:14px 28px;border-radius:0 0 10px 10px;border:1px solid #e4e7f0;border-top:none">
         <span style="font-size:11px;color:#bbb">Nagel Law Expense Portal — automated nightly run · andres@nagellaw.com</span>
       </div>
     </div>"""
- 
+
     # Send
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASSWORD", "")
- 
+
     if not smtp_user or not smtp_pass:
         log.warning("SMTP credentials not set — skipping email.")
         log.info("Summary:\n" + body_text)
         return
- 
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Nagel Law — Expense Report {today} ({len(processed)} docs · ${total_amount:,.0f})"
     msg["From"]    = smtp_user
     msg["To"]      = SUMMARY_EMAIL
     msg.attach(MIMEText(body_text, "plain"))
     msg.attach(MIMEText(body_html, "html"))
- 
+
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(smtp_user, smtp_pass)
@@ -693,7 +705,7 @@ def send_summary_email(results):
         log.info(f"Summary email sent to {SUMMARY_EMAIL}")
     except Exception as e:
         log.error(f"Email send failed: {e}")
- 
- 
+
+
 if __name__ == "__main__":
     run()
