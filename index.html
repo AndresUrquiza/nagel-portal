@@ -29,69 +29,38 @@
 html,body{height:100%;font-family:var(--font);color:var(--text);-webkit-font-smoothing:antialiased}
 button{font-family:var(--font);cursor:pointer;border:none;background:none}
 input,select{font-family:var(--font);font-size:14px}
-
-/* LOGIN */
 #login-screen{
   min-height:100vh;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(145deg,var(--navy3) 0%,var(--navy) 55%,#2a4a8a 100%);
   padding:20px;position:relative;overflow:hidden;
 }
-#login-screen::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 60% 40% at 70% 30%,rgba(201,168,76,.1) 0%,transparent 70%);
-}
-#login-screen::after{
-  content:'';position:absolute;inset:0;
-  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
-  background-size:48px 48px;
-}
-.login-card{
-  background:rgba(255,255,255,.97);border-radius:20px;padding:44px;
-  width:100%;max-width:420px;box-shadow:var(--shadow-lg);
-  border:1px solid rgba(255,255,255,.6);position:relative;z-index:1;
-  animation:slideUp .35s ease both;
-}
+#login-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 40% at 70% 30%,rgba(201,168,76,.1) 0%,transparent 70%);}
+#login-screen::after{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;}
+.login-card{background:rgba(255,255,255,.97);border-radius:20px;padding:44px;width:100%;max-width:420px;box-shadow:var(--shadow-lg);border:1px solid rgba(255,255,255,.6);position:relative;z-index:1;animation:slideUp .35s ease both;}
 @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 .login-emblem{display:flex;align-items:center;gap:12px;margin-bottom:32px}
-.login-badge{
-  width:44px;height:44px;background:var(--navy);border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--gold);font-weight:700;font-size:15px;letter-spacing:.5px;
-}
+.login-badge{width:44px;height:44px;background:var(--navy);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:700;font-size:15px;letter-spacing:.5px;}
 .login-firm{font-size:17px;font-weight:600;line-height:1.2}
 .login-sub{font-size:12px;color:var(--text3);margin-top:1px}
 .login-card h1{font-size:24px;font-weight:600;margin-bottom:6px}
 .login-tagline{color:var(--text2);font-size:14px;margin-bottom:28px;line-height:1.5}
 .field{margin-bottom:18px}
 .field label{display:block;font-size:12.5px;font-weight:500;color:var(--text2);margin-bottom:7px}
-.field input{
-  width:100%;padding:11px 14px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);
-  background:#fff;color:var(--text);font-size:14px;transition:all .15s;
-}
+.field input{width:100%;padding:11px 14px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);background:#fff;color:var(--text);font-size:14px;transition:all .15s;}
 .field input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,47,90,.1)}
-.btn-signin{
-  width:100%;padding:13px;background:var(--navy);color:#fff;
-  border-radius:var(--radius-sm);font-weight:500;font-size:14.5px;
-  transition:all .15s;letter-spacing:.2px;margin-top:4px;
-}
+.btn-signin{width:100%;padding:13px;background:var(--navy);color:#fff;border-radius:var(--radius-sm);font-weight:500;font-size:14.5px;transition:all .15s;letter-spacing:.2px;margin-top:4px;}
 .btn-signin:hover{background:var(--navy2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(26,47,90,.3)}
 .login-err{color:var(--err);font-size:13px;margin-top:10px;min-height:18px;font-weight:500}
 .login-hint{margin-top:24px;padding-top:20px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text3);text-align:center;line-height:1.8}
 .login-hint code{background:var(--slate);padding:2px 7px;border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--text2)}
-
-/* APP SHELL */
+.loading-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--slate);gap:16px;}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text3);font-weight:500;}
 #app{display:none;min-height:100vh;background:var(--slate)}
-.topbar{
-  background:var(--navy);border-bottom:1px solid rgba(255,255,255,.08);
-  padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;
-  position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(15,25,35,.2);
-}
+.topbar{background:var(--navy);border-bottom:1px solid rgba(255,255,255,.08);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(15,25,35,.2);}
 .topbar-brand{display:flex;align-items:center;gap:12px}
-.topbar-badge{
-  width:32px;height:32px;background:rgba(201,168,76,.18);border:1px solid rgba(201,168,76,.35);
-  border-radius:7px;display:flex;align-items:center;justify-content:center;
-  color:var(--gold2);font-weight:700;font-size:12.5px;
-}
+.topbar-badge{width:32px;height:32px;background:rgba(201,168,76,.18);border:1px solid rgba(201,168,76,.35);border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--gold2);font-weight:700;font-size:12.5px;}
 .topbar-name{font-size:15px;font-weight:600;color:#fff;letter-spacing:.2px}
 .topbar-sub{font-size:10.5px;color:rgba(255,255,255,.4);letter-spacing:.4px;text-transform:uppercase}
 .topbar-right{display:flex;align-items:center;gap:10px}
@@ -100,8 +69,6 @@ input,select{font-family:var(--font);font-size:14px}
 .user-name{font-size:12.5px;color:rgba(255,255,255,.8);font-weight:500}
 .btn-logout{padding:6px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:6px;font-size:12.5px;color:rgba(255,255,255,.7);transition:all .15s}
 .btn-logout:hover{background:rgba(255,255,255,.18);color:#fff}
-
-/* LAYOUT */
 .layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px)}
 .sidebar{background:#fff;border-right:1px solid var(--border);padding:18px 10px}
 .sidebar-section{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.9px;text-transform:uppercase;padding:0 10px;margin:8px 0 4px}
@@ -111,8 +78,6 @@ input,select{font-family:var(--font);font-size:14px}
 .nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
 .nav-divider{height:1px;background:var(--border);margin:10px 0}
 .main{padding:28px;overflow:auto}
-
-/* PAGE HEAD */
 .page-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:16px}
 .page-head h1{font-size:21px;font-weight:600;color:var(--text)}
 .page-head .sub{color:var(--text3);font-size:13px;margin-top:3px}
@@ -123,18 +88,13 @@ input,select{font-family:var(--font);font-size:14px}
 .btn-pdf{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;background:var(--navy);color:#fff;border-radius:var(--radius-sm);font-size:13px;font-weight:500;transition:all .15s;letter-spacing:.2px}
 .btn-pdf:hover{background:var(--navy2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(26,47,90,.25)}
 .btn-pdf svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
-
-/* ALERT */
 .alert-banner{display:flex;align-items:center;gap:12px;padding:11px 16px;background:var(--warn-bg);border:1px solid #f6d860;border-radius:var(--radius-sm);margin-bottom:20px;font-size:13px;color:var(--warn);font-weight:500}
 .alert-link{margin-left:auto;font-size:12px;text-decoration:underline;cursor:pointer;color:var(--warn)}
-
-/* KPI GRID */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .kpi{background:#fff;border-radius:var(--radius);padding:20px 22px;border:1px solid var(--border);box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:all .15s}
 .kpi:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 .kpi-accent{position:absolute;top:0;left:0;right:0;height:3px}
 .kpi-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px}
-/* ── clean numeric font ── */
 .kpi-value{font-size:28px;font-weight:600;color:var(--text);line-height:1;font-family:var(--mono);letter-spacing:-.5px;min-height:34px;display:flex;align-items:center}
 .kpi-value.kpi-value-md{font-size:28px;letter-spacing:-.5px}
 .kpi-value.kpi-value-sm{font-size:28px;font-family:var(--mono);font-weight:600;letter-spacing:-.5px}
@@ -144,16 +104,12 @@ input,select{font-family:var(--font);font-size:14px}
 .kpi-delta.down{background:var(--ok-bg);color:var(--ok)}
 .kpi-delta.flat{background:var(--slate);color:var(--text3)}
 .kpi-meta{font-size:12px;color:var(--text3)}
-
-/* CARDS */
 .card{background:#fff;border-radius:var(--radius);padding:22px 24px;border:1px solid var(--border);box-shadow:var(--shadow-sm);margin-bottom:20px}
 .card h2{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
 .card-sub{font-size:12px;color:var(--text3);margin-bottom:18px}
 .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-bottom:20px}
 .grid-2 .card{margin:0}
 .chart-wrap{position:relative;height:260px}
-
-/* TABLES */
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:9px 10px;border-bottom:1.5px solid var(--border)}
 td{font-size:13px;padding:10px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
@@ -171,10 +127,7 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
 .entity-tag{font-family:var(--mono);font-size:11.5px;background:var(--slate);padding:2px 7px;border-radius:4px;color:var(--text2)}
 .empty-state{text-align:center;padding:36px 20px;color:var(--text3);font-size:13px}
 .empty-icon{font-size:28px;margin-bottom:8px}
-
-/* ═══════════════════════════════════
-   PRINT / PDF  — landscape A4
-   ═══════════════════════════════════ */
+.data-timestamp{font-size:11px;color:var(--text3);text-align:right;margin-bottom:16px;font-style:italic}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   @page{size:A4 landscape;margin:14mm 16mm 14mm 16mm}
@@ -183,48 +136,30 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
   #app{display:block!important}
   .layout{display:block}
   .main{padding:0}
-
-  /* Print header injected via JS */
-  .print-header{display:flex!important;align-items:flex-start;justify-content:space-between;
-    padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid var(--navy)}
+  .print-header{display:flex!important;align-items:flex-start;justify-content:space-between;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid var(--navy)}
   .print-header-left .ph-firm{font-size:16px;font-weight:700;color:var(--navy)}
   .print-header-left .ph-title{font-size:13px;font-weight:600;color:var(--text);margin-top:2px}
   .print-header-left .ph-period{font-size:11px;color:var(--text3);margin-top:2px}
   .print-header-right{text-align:right}
-  .print-header-right .ph-badge{
-    display:inline-flex;align-items:center;justify-content:center;
-    width:38px;height:38px;background:var(--navy);border-radius:8px;
-    color:var(--gold);font-weight:700;font-size:14px;
-  }
+  .print-header-right .ph-badge{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;background:var(--navy);border-radius:8px;color:var(--gold);font-weight:700;font-size:14px;}
   .print-header-right .ph-date{font-size:10px;color:var(--text3);margin-top:6px}
-
   .kpi-grid{grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
   .kpi{padding:12px 14px;border:1px solid #ddd;box-shadow:none;page-break-inside:avoid}
   .kpi-accent{height:2px}
   .kpi-value{font-size:18px;min-height:auto}
-  .kpi-value.kpi-value-md{font-size:18px}
-  .kpi-value.kpi-value-sm{font-size:18px;font-family:var(--mono)}
+  .kpi-value.kpi-value-md,.kpi-value.kpi-value-sm{font-size:18px}
   .kpi-label{font-size:9px;margin-bottom:7px}
-
   .card{border:1px solid #ddd;box-shadow:none;padding:14px 16px;page-break-inside:avoid;margin-bottom:14px}
   .card h2{font-size:12px}
   .card-sub{font-size:10px;margin-bottom:12px}
   .chart-wrap{height:180px}
-
   .grid-2{grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-
   th{font-size:9px;padding:6px 8px}
   td{font-size:11px;padding:6px 8px}
   td.num,th.num{font-size:10.5px}
-
   .print-footer{display:block!important;text-align:center;font-size:9px;color:var(--text3);margin-top:14px;padding-top:10px;border-top:1px solid #ddd}
-  .print-footer.no-print-hide{display:block!important}
 }
-
-@media screen{
-  .print-header,.print-footer{display:none}
-}
-
+@media screen{.print-header,.print-footer{display:none}}
 @media(max-width:900px){
   .layout{grid-template-columns:1fr}
   .sidebar{display:none}
@@ -283,7 +218,6 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
 
       <!-- FIRM VIEW -->
       <section id="view-firm" class="view">
-        <!-- Print header (hidden on screen, shown when printing) -->
         <div class="print-header" id="firm-print-header">
           <div class="print-header-left">
             <div class="ph-firm">Nagel Law</div>
@@ -295,7 +229,6 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
             <div class="ph-date" id="ph-firm-date"></div>
           </div>
         </div>
-
         <div class="page-head no-print">
           <div><h1>Firm Overview</h1><div class="sub">Consolidated expenses across all entities</div></div>
           <div class="controls">
@@ -314,36 +247,27 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
             </button>
           </div>
         </div>
-
         <div id="firm-alert" style="display:none"></div>
-
         <div id="firm-content">
           <div class="kpi-grid">
-            <!-- KPI 1: Total Spend (with YoY delta as sub-metric) -->
             <div class="kpi">
               <div class="kpi-accent" style="background:linear-gradient(90deg,var(--navy),var(--gold))"></div>
               <div class="kpi-label">Total Spend</div>
               <div class="kpi-value" id="k-total">—</div>
-              <div class="kpi-sub">
-                <span class="kpi-delta flat" id="k-yoy-delta">—</span>
-                <span class="kpi-meta" id="k-yoy-meta"></span>
-              </div>
+              <div class="kpi-sub"><span class="kpi-delta flat" id="k-yoy-delta">—</span><span class="kpi-meta" id="k-yoy-meta"></span></div>
             </div>
-            <!-- KPI 2: Pending Obligations -->
             <div class="kpi">
               <div class="kpi-accent" style="background:linear-gradient(90deg,#d97706,#fbbf24)"></div>
               <div class="kpi-label">Pending Obligations</div>
               <div class="kpi-value kpi-value-md" id="k-pending-amt">—</div>
               <div class="kpi-sub"><span class="kpi-meta" id="k-pending-meta"></span></div>
             </div>
-            <!-- KPI 3: Top Expense Category -->
             <div class="kpi">
               <div class="kpi-accent" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
               <div class="kpi-label">Top Expense Category</div>
               <div class="kpi-value kpi-value-sm" id="k-top-cat">—</div>
               <div class="kpi-sub"><span class="kpi-meta" id="k-top-cat-meta"></span></div>
             </div>
-            <!-- KPI 4: All-Time Total -->
             <div class="kpi">
               <div class="kpi-accent" style="background:linear-gradient(90deg,#0891b2,#67e8f9)"></div>
               <div class="kpi-label">All-Time Total</div>
@@ -351,13 +275,11 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
               <div class="kpi-sub"><span class="kpi-meta" id="k-all-meta"></span></div>
             </div>
           </div>
-
           <div class="card">
             <h2>Monthly Spend Trend</h2>
             <div class="card-sub" id="firm-trend-sub">Year-over-year comparison by month</div>
             <div class="chart-wrap"><canvas id="chart-firm-monthly"></canvas></div>
           </div>
-
           <div class="grid-2">
             <div class="card">
               <h2>Spend by Entity</h2>
@@ -370,24 +292,16 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
               <div class="chart-wrap"><canvas id="chart-firm-cat"></canvas></div>
             </div>
           </div>
-
           <div class="card">
             <h2>Category Breakdown</h2>
             <div class="card-sub">Selected period vs prior year</div>
             <table id="tbl-firm-cat">
-              <thead><tr>
-                <th>Category</th><th class="num">Amount</th>
-                <th class="num">% of Total</th><th class="num">Prior Year</th><th class="num">YoY</th>
-              </tr></thead>
+              <thead><tr><th>Category</th><th class="num">Amount</th><th class="num">% of Total</th><th class="num">Prior Year</th><th class="num">YoY</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
         </div>
-
-        <!-- Print footer -->
-        <div class="print-footer" id="firm-print-footer">
-          Nagel Law — Confidential &nbsp;|&nbsp; Generated on <span id="pf-firm-date"></span> &nbsp;|&nbsp; Nagel Law Expense Portal
-        </div>
+        <div class="print-footer">Nagel Law — Confidential &nbsp;|&nbsp; Generated on <span id="pf-firm-date"></span> &nbsp;|&nbsp; Nagel Law Expense Portal</div>
       </section>
 
       <!-- ENTITY VIEW -->
@@ -403,7 +317,6 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
             <div class="ph-date" id="ph-ent-date"></div>
           </div>
         </div>
-
         <div class="page-head no-print">
           <div><h1 id="ent-page-title">Entity View</h1><div class="sub">Entity-level expense analysis</div></div>
           <div class="controls">
@@ -423,7 +336,6 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
             </button>
           </div>
         </div>
-
         <div id="ent-content">
           <div class="kpi-grid">
             <div class="kpi">
@@ -451,13 +363,11 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
               <div class="kpi-sub"><span class="kpi-meta" id="e-all-tx"></span></div>
             </div>
           </div>
-
           <div class="card">
             <h2>Monthly Spend Trend</h2>
             <div class="card-sub">Selected entity vs prior year</div>
             <div class="chart-wrap"><canvas id="chart-ent-monthly"></canvas></div>
           </div>
-
           <div class="grid-2">
             <div class="card">
               <h2>Spend by Category</h2>
@@ -477,10 +387,7 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
             </div>
           </div>
         </div>
-
-        <div class="print-footer">
-          Nagel Law — Confidential &nbsp;|&nbsp; Generated on <span id="pf-ent-date"></span> &nbsp;|&nbsp; Nagel Law Expense Portal
-        </div>
+        <div class="print-footer">Nagel Law — Confidential &nbsp;|&nbsp; Generated on <span id="pf-ent-date"></span> &nbsp;|&nbsp; Nagel Law Expense Portal</div>
       </section>
 
       <!-- LEDGER VIEW -->
@@ -527,47 +434,42 @@ tr.total-row td{font-weight:600;background:var(--slate);border-top:1.5px solid v
 </div>
 
 <script>
-// ─── DATA ───────────────────────────────────────────
-const TRANSACTIONS = [
-  {date:"2025-01-15",entity:"ENT-01",vendor:"Acme Realty",category:"Rent & Utilities",desc:"Jan office rent",amount:4500,status:"Paid",source:"Email",inv:"INV-1001"},
-  {date:"2025-01-22",entity:"ENT-01",vendor:"Westlaw",category:"Software & Subscriptions",desc:"Legal research",amount:380,status:"Paid",source:"Email",inv:"WL-0125"},
-  {date:"2025-02-03",entity:"ENT-02",vendor:"Acme Realty",category:"Rent & Utilities",desc:"Feb office rent",amount:2800,status:"Paid",source:"Drive",inv:"INV-1042"},
-  {date:"2025-02-14",entity:"NAGEL",vendor:"ADP",category:"Payroll",desc:"Feb payroll",amount:38500,status:"Paid",source:"Email",inv:"ADP-0214"},
-  {date:"2025-03-05",entity:"ENT-03",vendor:"Delta Airlines",category:"Travel & Meals",desc:"Client trip - Miami",amount:620,status:"Paid",source:"Email",inv:"DL-3321"},
-  {date:"2025-03-19",entity:"ENT-01",vendor:"Office Depot",category:"Office Supplies",desc:"Toner & paper",amount:215,status:"Paid",source:"Drive",inv:"OD-7781"},
-  {date:"2025-04-02",entity:"NAGEL",vendor:"State Bar",category:"Taxes & Licenses",desc:"Annual bar dues",amount:650,status:"Paid",source:"Email",inv:"BAR-2026"},
-  {date:"2025-04-10",entity:"ENT-02",vendor:"Chubb",category:"Insurance",desc:"Q2 malpractice premium",amount:2200,status:"Paid",source:"Drive",inv:"CHB-Q2"},
-  {date:"2025-05-08",entity:"ENT-01",vendor:"Google Ads",category:"Marketing",desc:"May campaign",amount:1250,status:"Paid",source:"Email",inv:"GA-0508"},
-  {date:"2025-06-20",entity:"ENT-03",vendor:"Dell",category:"Equipment",desc:"Paralegal laptop",amount:1850,status:"Paid",source:"Email",inv:"DL-0620"},
-  {date:"2025-07-01",entity:"NAGEL",vendor:"ADP",category:"Payroll",desc:"Jul payroll",amount:39200,status:"Paid",source:"Email",inv:"ADP-0701"},
-  {date:"2025-08-15",entity:"ENT-02",vendor:"Zoom",category:"Software & Subscriptions",desc:"Annual license",amount:2400,status:"Paid",source:"Email",inv:"ZM-2025"},
-  {date:"2025-09-09",entity:"ENT-01",vendor:"Chase",category:"Bank & Merchant Fees",desc:"Wire fees",amount:95,status:"Paid",source:"Drive",inv:"CH-0909"},
-  {date:"2025-10-22",entity:"ENT-03",vendor:"Hilton",category:"Travel & Meals",desc:"Client dinner",amount:340,status:"Paid",source:"Email",inv:"HLT-1022"},
-  {date:"2025-11-04",entity:"NAGEL",vendor:"KPMG",category:"Professional Services",desc:"Tax advisory",amount:5500,status:"Paid",source:"Email",inv:"KP-1104"},
-  {date:"2025-12-12",entity:"ENT-01",vendor:"Acme Realty",category:"Rent & Utilities",desc:"Dec office rent",amount:4500,status:"Paid",source:"Email",inv:"INV-1198"},
-  {date:"2026-01-14",entity:"ENT-01",vendor:"Acme Realty",category:"Rent & Utilities",desc:"Jan office rent",amount:4650,status:"Paid",source:"Email",inv:"INV-1201"},
-  {date:"2026-01-28",entity:"NAGEL",vendor:"ADP",category:"Payroll",desc:"Jan payroll",amount:41000,status:"Paid",source:"Email",inv:"ADP-0128"},
-  {date:"2026-02-10",entity:"ENT-02",vendor:"Westlaw",category:"Software & Subscriptions",desc:"Legal research",amount:420,status:"Paid",source:"Email",inv:"WL-0226"},
-  {date:"2026-02-24",entity:"ENT-03",vendor:"Delta Airlines",category:"Travel & Meals",desc:"Deposition travel",amount:780,status:"Paid",source:"Email",inv:"DL-0224"},
-  {date:"2026-03-08",entity:"NAGEL",vendor:"Chubb",category:"Insurance",desc:"Q1 malpractice",amount:2350,status:"Paid",source:"Drive",inv:"CHB-Q126"},
-  {date:"2026-03-30",entity:"ENT-01",vendor:"Google Ads",category:"Marketing",desc:"Mar campaign",amount:1380,status:"Paid",source:"Email",inv:"GA-0330"},
-  {date:"2026-04-05",entity:"ENT-02",vendor:"Office Depot",category:"Office Supplies",desc:"Supplies restock",amount:275,status:"Pending",source:"Drive",inv:"OD-7891"},
-  {date:"2026-04-12",entity:"ENT-03",vendor:"KPMG",category:"Professional Services",desc:"Tax filing",amount:1800,status:"Pending",source:"Email",inv:"KP-0412"}
-];
-
-const ENTITIES = [
-  {code:"NAGEL",name:"Nagel Law (Firm)"},
-  {code:"ENT-01",name:"Entity 01"},
-  {code:"ENT-02",name:"Entity 02"},
-  {code:"ENT-03",name:"Entity 03"}
-];
+// ─── LIVE DATA — loaded from data.json generated nightly ───────────────────
+let TRANSACTIONS = [];
+let ENTITIES     = [];
 
 const USERS = [
-  {email:"andres@nagellaw.com",password:"nagel2026",name:"Andres",role:"admin"},
-  {email:"boss@nagellaw.com",  password:"nagel2026",name:"Boss",  role:"viewer"}
+  {email:"andres@nagellaw.com", password:"nagel2026", name:"Andres", role:"admin"},
+  {email:"boss@nagellaw.com",   password:"nagel2026", name:"Boss",   role:"viewer"}
 ];
 
-// ─── HELPERS ────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    if (!res.ok) throw new Error('data.json not found');
+    const d = await res.json();
+    TRANSACTIONS = (d.transactions || []).map(t => ({
+      date:     t.date     || "",
+      entity:   t.entity   || "",
+      vendor:   t.vendor   || "",
+      category: t.category || "",
+      desc:     t.desc     || "",
+      amount:   parseFloat(t.amount) || 0,
+      status:   t.status   || "Pending",
+      source:   t.source   || "",
+      inv:      t.inv      || ""
+    }));
+    const codes = [...new Set(TRANSACTIONS.map(t => t.entity).filter(Boolean))].sort();
+    ENTITIES = codes.map(code => ({ code, name: code }));
+    console.log(`Loaded ${TRANSACTIONS.length} transactions from data.json (${d.generated})`);
+  } catch(e) {
+    console.warn('Could not load data.json — portal has no data yet.', e);
+    TRANSACTIONS = [];
+    ENTITIES = [];
+  }
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const fmt$=n=>"$"+Math.abs(Math.round(n)).toLocaleString();
 const fmtPct=n=>(n>=0?"+":"")+(n*100).toFixed(1)+"%";
@@ -589,7 +491,7 @@ function topCategory(txns){
 }
 const today=new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
 
-// ─── AUTH ────────────────────────────────────────────
+// ─── AUTH ────────────────────────────────────────────────────────────────────
 let currentUser=null;
 function doLogin(){
   const email=document.getElementById("f-email").value.trim().toLowerCase();
@@ -601,7 +503,7 @@ function doLogin(){
   document.getElementById("login-screen").style.display="none";
   document.getElementById("app").style.display="block";
   document.getElementById("topbar-user").textContent=user.name+" ("+user.role+")";
-  initApp();
+  loadData().then(()=>initApp());
 }
 document.getElementById("f-pw").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
 document.getElementById("f-email").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
@@ -613,7 +515,7 @@ function doLogout(){
   destroyCharts();
 }
 
-// ─── NAV ─────────────────────────────────────────────
+// ─── NAV ─────────────────────────────────────────────────────────────────────
 const VIEWS=["firm","entity","ledger","pending"];
 document.querySelectorAll(".nav-item").forEach(btn=>{
   btn.addEventListener("click",()=>{
@@ -626,8 +528,15 @@ document.querySelectorAll(".nav-item").forEach(btn=>{
   });
 });
 
-// ─── INIT ─────────────────────────────────────────────
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 function initApp(){
+  if(TRANSACTIONS.length===0){
+    document.getElementById("firm-alert").style.display="flex";
+    document.getElementById("firm-alert").innerHTML=
+      '<div class="alert-banner"><span>ℹ️</span><span>No transaction data yet. The portal will populate automatically after the first nightly run.</span></div>';
+    return;
+  }
+
   const yrs=uniq(TRANSACTIONS.map(t=>yearOf(t.date))).sort();
   ["firm-year","ent-year"].forEach(id=>{
     const s=document.getElementById(id);
@@ -637,7 +546,7 @@ function initApp(){
   document.getElementById("ledger-year").innerHTML=
     `<option value="all">All</option>`+yrs.map(y=>`<option value="${y}">${y}</option>`).join("");
   document.getElementById("ent-pick").innerHTML=
-    ENTITIES.map(e=>`<option value="${e.code}">${e.code} — ${e.name}</option>`).join("");
+    ENTITIES.map(e=>`<option value="${e.code}">${e.code}</option>`).join("");
   document.getElementById("ledger-entity").innerHTML=
     `<option value="all">All</option>`+ENTITIES.map(e=>`<option value="${e.code}">${e.code}</option>`).join("");
 
@@ -656,12 +565,11 @@ function initApp(){
   ["ent-pick","ent-year","ent-month"].forEach(id=>document.getElementById(id).addEventListener("change",renderEntity));
   ["ledger-year","ledger-month","ledger-entity","ledger-status"].forEach(id=>document.getElementById(id).addEventListener("change",renderLedger));
 
-  // Print footer dates
   document.querySelectorAll('[id^="pf-"]').forEach(el=>el.textContent=today);
   renderFirm(); renderEntity();
 }
 
-// ─── FIRM VIEW ────────────────────────────────────────
+// ─── FIRM VIEW ───────────────────────────────────────────────────────────────
 let charts={};
 function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};}
 
@@ -675,7 +583,6 @@ function renderFirm(){
   const allTm=sumT(TRANSACTIONS,()=>true);
   const allTx=TRANSACTIONS.length;
 
-  // KPI 1 — Total Spend
   document.getElementById("k-total").textContent=fmt$(total);
   const ydEl=document.getElementById("k-yoy-delta");
   const ymEl=document.getElementById("k-yoy-meta");
@@ -685,27 +592,20 @@ function renderFirm(){
     ymEl.textContent="Prior: "+fmt$(prior);
   } else {ydEl.textContent="First year on record";ydEl.className="kpi-delta flat";ymEl.textContent="";}
 
-  // KPI 2 — Pending
   const pend=TRANSACTIONS.filter(t=>t.status==="Pending");
   const pendAmt=pend.reduce((a,t)=>a+t.amount,0);
   document.getElementById("k-pending-amt").textContent=pendAmt>0?fmt$(pendAmt):"$0";
   document.getElementById("k-pending-meta").textContent=pend.length>0?`${pend.length} invoice${pend.length>1?"s":""} awaiting payment`:"All invoices cleared";
 
-  // KPI 3 — Top category
   const tc=topCategory(txns);
   if(tc){
     document.getElementById("k-top-cat").textContent=tc.name;
     document.getElementById("k-top-cat-meta").textContent=fmt$(tc.amount)+" · "+(total?((tc.amount/total)*100).toFixed(0):0)+"% of total";
-  } else {
-    document.getElementById("k-top-cat").textContent="—";
-    document.getElementById("k-top-cat-meta").textContent="No data";
-  }
+  } else {document.getElementById("k-top-cat").textContent="—";document.getElementById("k-top-cat-meta").textContent="No data";}
 
-  // KPI 4 — All-time
   document.getElementById("k-all").textContent=fmt$(allTm);
   document.getElementById("k-all-meta").textContent=allTx+" total transactions";
 
-  // Charts
   if(m==="all"){
     document.getElementById("firm-trend-sub").textContent=`${y} vs ${+y-1} — firm-wide monthly comparison`;
     const sel=MONTHS.map(mo=>sumT(TRANSACTIONS,t=>yearOf(t.date)===+y&&monthOf(t.date)===mo));
@@ -719,15 +619,13 @@ function renderFirm(){
   const cats=uniq(TRANSACTIONS.map(t=>t.category)).sort();
   drawDoughnut("chart-firm-cat",cats,cats.map(c=>sumT(TRANSACTIONS,t=>matchPeriod(t,y,m)&&t.category===c)));
 
-  // Table
   const rows=cats.map(c=>{
     const s=sumT(TRANSACTIONS,t=>matchPeriod(t,y,m)&&t.category===c);
     const p=sumT(TRANSACTIONS,t=>matchPeriod(t,+y-1,m)&&t.category===c);
     return{c,s,p,pct:total?s/total:0,yoy:p?(s-p)/p:null};
   }).filter(r=>r.s>0||r.p>0).sort((a,b)=>b.s-a.s);
   document.querySelector("#tbl-firm-cat tbody").innerHTML=rows.map(r=>`<tr>
-    <td>${r.c}</td>
-    <td class="num">${fmt$(r.s)}</td>
+    <td>${r.c}</td><td class="num">${fmt$(r.s)}</td>
     <td class="num"><div class="pct-track">${(r.pct*100).toFixed(1)}%
       <div class="pct-bar-outer"><div class="pct-bar-inner" style="width:${Math.min(100,r.pct*100)}%"></div></div></div></td>
     <td class="num">${fmt$(r.p)}</td>
@@ -737,13 +635,12 @@ function renderFirm(){
    <td class="num">${fmt$(prior)}</td>
    <td class="num" style="color:${yoy===null?"inherit":yoy>0?"var(--err)":"var(--ok)"}">${yoy===null?"—":fmtPct(yoy)}</td></tr>`;
 
-  // Update print header
   const period=m==="all"?`Full Year ${y}`:`${m} ${y}`;
   document.getElementById("ph-firm-period").textContent=`Period: ${period}  |  All Entities`;
   document.getElementById("ph-firm-date").textContent=`Generated: ${today}`;
 }
 
-// ─── ENTITY VIEW ──────────────────────────────────────
+// ─── ENTITY VIEW ──────────────────────────────────────────────────────────────
 function renderEntity(){
   const code=document.getElementById("ent-pick").value;
   const y=document.getElementById("ent-year").value;
@@ -799,7 +696,7 @@ function renderEntity(){
   document.getElementById("ph-ent-date").textContent=`Generated: ${today}`;
 }
 
-// ─── LEDGER ──────────────────────────────────────────
+// ─── LEDGER ──────────────────────────────────────────────────────────────────
 function renderLedger(){
   const y=document.getElementById("ledger-year").value;
   const m=document.getElementById("ledger-month").value;
@@ -811,7 +708,7 @@ function renderLedger(){
     :`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📭</div>No transactions match these filters</div></td></tr>`;
 }
 
-// ─── PENDING ─────────────────────────────────────────
+// ─── PENDING ─────────────────────────────────────────────────────────────────
 function renderPending(){
   const rows=TRANSACTIONS.filter(t=>t.status==="Pending").sort((a,b)=>a.date.localeCompare(b.date));
   document.querySelector("#tbl-pending tbody").innerHTML=rows.length
@@ -819,7 +716,7 @@ function renderPending(){
     :`<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">✅</div>No pending invoices — all caught up!</div></td></tr>`;
 }
 
-// ─── CHARTS ──────────────────────────────────────────
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
 const PAL=["#1a2f5a","#c9a84c","#2E75B6","#548235","#7030A0","#C65911","#0891b2","#385723","#974706","#BFBFBF"];
 function drawLine(id,labels,series){
   if(charts[id])charts[id].destroy();
@@ -842,9 +739,8 @@ function drawDoughnut(id,labels,data){
     options:{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{position:"right",labels:{boxWidth:9,font:{size:11}}}}}});
 }
 
-// ─── PRINT ───────────────────────────────────────────
+// ─── PRINT ───────────────────────────────────────────────────────────────────
 function printReport(view){
-  // Update print header date one more time
   document.querySelectorAll('[id^="pf-"]').forEach(el=>el.textContent=today);
   window.print();
 }
