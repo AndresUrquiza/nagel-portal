@@ -58,7 +58,7 @@ logging.basicConfig(
 log = logging.getLogger("nagel")
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-ENTITIES = ["AFLE", "GT Nevis", "GT Bank", "Nagel Law"]
+ENTITIES = ["AFLE", "GT Nevis", "GT Bank", "Nagel & Associates"]
 UNRECOGNIZED_FOLDER = "_Unrecognized"
 DONE_FOLDER = "done"
 CONFIDENCE_THRESHOLD = 0.90
@@ -445,7 +445,7 @@ def run():
     for folder_name, folder_id in subfolders.items():
 
         # Skip system folders
-        if folder_name.startswith("_") or folder_name == DONE_FOLDER:
+        if folder_name.startswith("_") or folder_name.startswith("00_") or folder_name == DONE_FOLDER:
             continue
 
         log.info(f"Processing folder: {folder_name}")
