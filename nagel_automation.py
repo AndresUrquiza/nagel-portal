@@ -445,7 +445,7 @@ def is_duplicate(ws, filename, data=None, start_row=4):
                     return True, (
                         f"Duplicate in row {row_num} — "
                         f"vendor: '{ex_vendor}' / amount: ${ex_amount} / invoice#: {ex_inv}"
-                    )
+                    ), row_num
 
     return False, "", None
 
