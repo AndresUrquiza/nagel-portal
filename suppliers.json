@@ -182,12 +182,17 @@
       "Rent & Utilities: Monthly MRLO and office space provision October 2025",
       "Professional Services: Incorporation, ALHL, TCSP legal fees and secretary services",
       "Rent & Utilities: Registered office fee with proportional VAT",
-      "Taxes & Licenses: Government fees, stamp duty, due diligence, TCSP license"
+      "Taxes & Licenses: Government fees, stamp duty, due diligence, TCSP license",
+      "Taxes & Licenses: Government application fee and stamp duty for ALHL and TCSP licence",
+      "Rent & Utilities: Monthly MRLO and office space retainer October 2025",
+      "Professional Services: Incorporation, ALHL service fees, legal advice, secretary fees with VAT",
+      "Taxes & Licenses: Government fees, stamp duty, due diligence, TCSP license disbursements"
     ]
   },
   "AFLE|Tribevest, Inc.": {
     "_learned": [
-      "Software & Subscriptions: FMT onboarding fee for Tribevest partnership management platform"
+      "Software & Subscriptions: FMT onboarding fee for Tribevest partnership management platform",
+      "Software & Subscriptions: FMT onboarding fee for Tribevest investment platform"
     ]
   }
 }
