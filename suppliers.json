@@ -1,4 +1,111 @@
 {
-  "GT Nevis|Joseph Rowe": "Rent & Utilities: Monthly MRLO and office space provision January 2026 | Rent & Utilities: Monthly MRLO and office space provision March 2026 | Taxes & Licenses: Government licence fees and stamp duty for ALHL/TCSP | Professional Services: CBI Authorised Agent Application legal services for GT Nevis | Rent & Utilities: Monthly MRLO and office space provision October 2025 | Taxes & Licenses: Incorporation, ALHL and TCSP licence fees and disbursements",
-  "GT Nevis|Joseph Rowe Attorneys-at-Law": "Rent & Utilities: Monthly MRLO and office space provision June 2025 | Rent & Utilities: MRLO provision and office space retainer August 2025 | Rent & Utilities: MRLO and office space provision September 2025"
+  "version": "1.0",
+  "last_updated": "2026-04-29",
+  "master_categories": [
+    "Rent & Utilities",
+    "Professional Services",
+    "Taxes & Licenses",
+    "Payroll",
+    "Insurance",
+    "Software & Subscriptions",
+    "Office Supplies",
+    "Travel & Meals",
+    "Equipment",
+    "Bank & Merchant Fees",
+    "Marketing",
+    "Other"
+  ],
+  "suppliers": [
+    {
+      "vendor_name": "Joseph Rowe Attorneys-at-Law",
+      "aliases": ["Joseph Rowe", "Joseph Rowe Attorneys", "Joseph Rowe Law"],
+      "entity": "GT Nevis",
+      "vendor_context": "Registered office and corporate services provider in St. Kitts and Nevis. Acts on our behalf for government payments, license payments, and provides physical office space (registered office). They are NOT external legal counsel for unrelated matters — most invoices are operational/administrative for our Nevis entity. Do not default invoices from this vendor to Professional Services without reading line items.",
+      "sender_emails": [
+        "v.lewis@josephrowelaw.com",
+        "rowe@josephrowelaw.com",
+        "s.tyrell@josephrowelaw.com"
+      ],
+      "sender_domain": "josephrowelaw.com",
+      "invoice_structure": {
+        "invoice_number_location": "Upper right corner. Format: 'INVOICE' header, then 'Invoice # <number>', then 'Date: MM/DD/YYYY', then 'Due On: MM/DD/YYYY' on consecutive lines.",
+        "invoice_number_format": "Invoice # NNNN (4-digit sequential)",
+        "line_items_location": "Middle of invoice in a table. May have separate 'Services' and 'Disbursements' sections. May continue to page 2 if list is long.",
+        "vat_included": true,
+        "vat_rate": 0.17,
+        "amount_to_record": "gross total including VAT (the 'Total USD' line at the bottom)",
+        "currency": "USD",
+        "sends_paid_receipts": true,
+        "paid_receipt_format": "Same document and same invoice number as the original invoice, but with an added 'Payment (MM/DD/YYYY)' line showing a negative amount equal to the total, and a 'Balance Due $0.00' line beneath it."
+      },
+      "invoice_types": [
+        {
+          "type_id": "monthly_retainer",
+          "description": "Monthly retainer for MRLO and registered office space. Single line item invoice.",
+          "category": "Rent & Utilities",
+          "subcategory": "Registered Office Services",
+          "typical_amount_range": [3390, 3510],
+          "frequency": "monthly",
+          "keywords": ["MRLO", "office space", "monthly retainer", "registered office", "provision of MRLO"],
+          "re_line_signal": "RE: Monthly Retainer"
+        },
+        {
+          "type_id": "incorporation_and_licensing",
+          "description": "Multi-line invoice covering company incorporation, ALHL/TCSP licence applications, and related government disbursements. Almost always splits into multiple categories.",
+          "category": "MIXED",
+          "typical_amount_range": [5000, 25000],
+          "frequency": "occasional",
+          "keywords": ["incorporation", "ALHL", "TCSP", "licence", "license", "alien land holding", "application"],
+          "re_line_signal": "RE: Incorporation, ALHL, TCSP, Licence"
+        }
+      ],
+      "line_item_categorization_rules": [
+        {
+          "rule": "MRLO / Office Space / Registered Office Fee (recurring monthly use)",
+          "category": "Rent & Utilities",
+          "subcategory": "Registered Office Services",
+          "match_keywords": ["MRLO", "office space", "registered office fee"]
+        },
+        {
+          "rule": "Incorporation services, legal advice, licence application services (Joseph Rowe's own service fees, not government fees)",
+          "category": "Professional Services",
+          "subcategory": "Incorporation & Legal Services",
+          "match_keywords": ["service fee - incorporation", "legal fee", "advice and assistance", "preparation of allotment", "secretary - annual fee", "secretary (one time appointment", "service fee - alien land holding licence", "service fee - ALHL"]
+        },
+        {
+          "rule": "Agent services — registered agent role",
+          "category": "Professional Services",
+          "subcategory": "Agent Services",
+          "match_keywords": ["agent services", "registered agent", "agent fee"]
+        },
+        {
+          "rule": "Government fees, stamp duty, regulatory disbursements, due diligence fees, FSCR/FSRC compliance, TCSP/ALHL government application fees — anything paid through to government or regulator",
+          "category": "Taxes & Licenses",
+          "subcategory": "Government & Regulatory Disbursements",
+          "match_keywords": ["government", "stamp duty", "filing", "FSCR", "FSRC", "due diligence fees", "compliance officer", "money laundering reporting officer", "government application fee", "miscellaneous (adhesive stamps)", "government approved application", "class II", "TCSP license"],
+          "match_section": "Disbursements"
+        },
+        {
+          "rule": "Payroll and employment costs paid on our behalf",
+          "category": "Payroll",
+          "subcategory": "Payroll & Employment Costs",
+          "match_keywords": ["payroll", "salary", "wages", "employment cost", "social security"]
+        }
+      ],
+      "extraction_rules": {
+        "approach": "smart_grouping",
+        "approach_description": "Group invoice line items by master category. Create ONE tracker entry per master category per invoice. Most invoices produce 1 entry; complex invoices like incorporation produce up to 3 entries (Rent & Utilities, Professional Services, Taxes & Licenses).",
+        "amount_calculation": "For each category group, sum the net line totals of its line items, then distribute the global VAT proportionally so each group's gross = net + (net / total_net * total_vat). The sum of all category-group gross amounts must equal the invoice 'Total USD'.",
+        "shared_invoice_number": "All entries derived from the same invoice share the same invoice_number. They are siblings, not duplicates.",
+        "paid_receipt_handling": "Detect a paid receipt by: (a) presence of 'Payment (date)' line with negative amount, AND (b) 'Balance Due $0.00' line. When detected, look up the existing tracker entries by invoice_number + vendor. Update payment_date and payment_status='Paid' on all sibling entries. DO NOT create new entries.",
+        "category_default_warning": "Never categorize a Joseph Rowe invoice as 'Professional Services' wholesale. Always read line items individually."
+      },
+      "confidence_hints": {
+        "primary_signal": "line item description in the invoice table — match against line_item_categorization_rules",
+        "secondary_signal": "section header (Services vs Disbursements) — disbursements are almost always Taxes & Licenses",
+        "tertiary_signal": "RE: line at top of invoice indicating overall purpose",
+        "amount_range_check": "If the sum for a single invoice falls far outside typical ranges, flag for human review"
+      }
+    }
+  ]
 }
