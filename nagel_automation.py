@@ -307,6 +307,91 @@ def upload_excel(drive, local_path):
 
 
 # ─── AI extraction ───────────────────────────────────────────────────────────
+def load_supplier_profile(entity: str, vendor_hint: str = "") -> dict:
+    """
+    Load a supplier profile from suppliers.json (versioned format).
+    Matches by entity + vendor_name or any alias.
+    Returns the profile dict or {} if not found.
+    """
+    import json as _json
+    if not os.path.exists("suppliers.json"):
+        return {}
+    try:
+        with open("suppliers.json") as f:
+            db = _json.load(f)
+        suppliers = db.get("suppliers", [])
+        vh = (vendor_hint or "").strip().lower()
+        for s in suppliers:
+            if s.get("entity", "") != entity:
+                continue
+            names = [s.get("vendor_name", "")] + s.get("aliases", [])
+            for name in names:
+                nl = name.strip().lower()
+                if not nl:
+                    continue
+                if nl == vh or (vh and (nl in vh or vh in nl)):
+                    return s
+        # No vendor match — return first supplier for this entity if any
+        for s in suppliers:
+            if s.get("entity", "") == entity:
+                return s
+        return {}
+    except Exception as e:
+        log.warning(f"Could not load supplier profile: {e}")
+        return {}
+
+
+def build_supplier_hint(profile: dict) -> str:
+    """Convert a versioned supplier profile into a hint string for the AI prompt."""
+    if not profile:
+        return ""
+    lines = ["\n\n=== SUPPLIER PROFILE ==="]
+    lines.append(f"Vendor: {profile.get('vendor_name','')}")
+
+    ctx = profile.get("vendor_context", "")
+    if ctx:
+        lines.append(f"Context: {ctx}")
+
+    struct = profile.get("invoice_structure", {})
+    if struct.get("vat_included"):
+        rate = int(struct.get("vat_rate", 0) * 100)
+        lines.append(f"VAT: {rate}% included. Distribute proportionally across category groups so groups sum to Total USD.")
+    if struct.get("sends_paid_receipts"):
+        lines.append(f"Paid receipts: {struct.get('paid_receipt_format','')}")
+    if struct.get("invoice_number_location"):
+        lines.append(f"Invoice # location: {struct.get('invoice_number_location')}")
+
+    inv_types = profile.get("invoice_types", [])
+    if inv_types:
+        lines.append("Invoice types this vendor sends:")
+        for t in inv_types:
+            kws = ", ".join(t.get("keywords", []))
+            cat = t.get("category", "MIXED")
+            lines.append(f"  - {t.get('type_id','')} ({cat}): keywords [{kws}]")
+
+    rules = profile.get("line_item_categorization_rules", [])
+    if rules:
+        lines.append("Line-item categorization rules (match keywords against each line item):")
+        for r in rules:
+            kws = ", ".join(r.get("match_keywords", []))
+            lines.append(f"  - {r.get('category','')}: [{kws}]")
+
+    extraction = profile.get("extraction_rules", {})
+    approach = extraction.get("approach", "")
+    if approach == "smart_grouping":
+        lines.append("APPROACH: smart_grouping — create ONE entry per master category. "
+                     "Sum line items within each category, then distribute VAT proportionally.")
+        if extraction.get("category_default_warning"):
+            lines.append(f"WARNING: {extraction['category_default_warning']}")
+
+    hints = profile.get("confidence_hints", {})
+    if isinstance(hints, dict) and hints:
+        lines.append("Confidence hints:")
+        for k, v in hints.items():
+            lines.append(f"  - {k}: {v}")
+    return "\n".join(lines)
+
+
 def extract_invoice_data(file_bytes: bytes, filename: str, entity: str, mime_type: str) -> dict:
     """
     Send the document to Claude and get structured invoice data back.
@@ -326,9 +411,13 @@ def extract_invoice_data(file_bytes: bytes, filename: str, entity: str, mime_typ
 
     categories_list = "\n".join(f"- {c}" for c in CATEGORIES)
 
+    # Load supplier profile for this entity (alias match happens inside)
+    supplier_profile = load_supplier_profile(entity)
+    supplier_hint = build_supplier_hint(supplier_profile)
+
     prompt = f"""You are an expert bookkeeper reviewing a business expense document for Nagel Law.
 
-The document was uploaded to the "{entity}" entity folder.
+The document was uploaded to the "{entity}" entity folder.{supplier_hint}
 
 CATEGORY SELECTION RULES — read carefully before choosing:
 - "Rent & Utilities": office space rent, MRLO office provision, utility bills
@@ -364,19 +453,29 @@ Extract the following:
 10. confidence — 0.0 to 1.0. Be strict: 0.95+ only if every field is clear
 11. notes — if confidence below 0.90, briefly explain what is unclear
 
+MULTI-CATEGORY GROUPING:
+If the invoice has line items from different categories, create one entry per category group.
+Each group should sum to its portion of the total (including proportional VAT).
+The groups must sum to the invoice Total USD.
+
 Respond ONLY with a valid JSON object, no markdown, no explanation:
 {{
   "vendor": "...",
   "amount": 0.00,
   "date": "YYYY-MM-DD",
-  "category": "...",
   "invoice_number": "...",
-  "description": "...",
-  "due_date": "YYYY-MM-DD or null",
   "is_paid": false,
   "payment_date": "YYYY-MM-DD or null",
+  "due_date": "YYYY-MM-DD or null",
   "confidence": 0.00,
-  "notes": "..."
+  "notes": "...",
+  "line_groups": [
+    {{
+      "category": "...",
+      "amount": 0.00,
+      "description": "5-10 word description of this group"
+    }}
+  ]
 }}"""
 
     try:
@@ -407,25 +506,38 @@ Respond ONLY with a valid JSON object, no markdown, no explanation:
 
         response = client.messages.create(
             model="claude-opus-4-6",
-            max_tokens=600,
+            max_tokens=1500,
             messages=[{"role": "user", "content": content}]
         )
 
         raw = response.content[0].text.strip()
-        # Strip markdown fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
         data = json.loads(raw.strip())
 
-        # Validate required fields
-        for key in ["vendor", "amount", "date", "category", "confidence"]:
+        for key in ["vendor", "invoice_number", "confidence"]:
             if key not in data:
                 raise ValueError(f"Missing field: {key}")
 
-        data["amount"] = float(data.get("amount", 0))
         data["confidence"] = float(data.get("confidence", 0))
+
+        # Normalise line_groups — ensure they exist and amounts are floats
+        groups = data.get("line_groups", [])
+        if not groups:
+            # Fallback: create single group from top-level fields
+            groups = [{
+                "category": data.get("category", "Other"),
+                "amount":   float(data.get("amount", 0)),
+                "description": data.get("description", "")
+            }]
+        else:
+            for g in groups:
+                g["amount"] = float(g.get("amount", 0))
+
+        data["line_groups"] = groups
+        data["amount"] = sum(g["amount"] for g in groups)
         return data
 
     except Exception as e:
@@ -517,42 +629,33 @@ def is_duplicate(ws, filename, data=None, start_row=4):
         if file_cell and str(file_cell).strip() == str(filename).strip():
             return True, f"Filename already exists in row {row_num}", row_num
 
-        # Method 2: vendor + amount + invoice_number (all three must match)
-        #
-        # This is the correct logic:
-        # - Monthly rent: same vendor, same amount, DIFFERENT invoice# → valid, not duplicate
-        # - Same invoice twice: same vendor, same amount, SAME invoice# → duplicate, skip
-        # - Renamed file: same vendor, same amount, SAME invoice# → duplicate, skip
-        #
-        # Invoice# is the unique identifier per invoice.
-        # Vendor is fuzzy-matched (partial) to handle slight name variations.
-        # Amount must match to the cent.
+        # Method 2: vendor + invoice# + category
+        # With multi-category grouping, same invoice can have multiple rows.
+        # Duplicate = same vendor + invoice# + category.
+        # Same invoice + different category = valid new row.
         if data:
-            ex_vendor = str(ws.cell(row=row_num, column=5).value or "").strip().lower()
-            ex_amount = ws.cell(row=row_num, column=8).value
-            ex_inv    = str(ws.cell(row=row_num, column=11).value or "").strip()
+            ex_vendor   = str(ws.cell(row=row_num, column=5).value or "").strip().lower()
+            ex_inv      = str(ws.cell(row=row_num, column=11).value or "").strip()
+            ex_category = str(ws.cell(row=row_num, column=6).value or "").strip()
 
-            new_vendor = str(data.get("vendor", "")).strip().lower()
-            new_amount = data.get("amount", None)
-            new_inv    = str(data.get("invoice_number", "")).strip()
+            new_vendor   = str(data.get("vendor", "")).strip().lower()
+            new_inv      = str(data.get("invoice_number", "")).strip()
+            new_category = str(data.get("category", "")).strip()
 
-            # Skip if invoice number is missing or generic
-            if not ex_inv or not new_inv or ex_inv in ("N/A", "") or new_inv in ("N/A", ""):
+            if not ex_inv or not new_inv or ex_inv in ("N/A","") or new_inv in ("N/A",""):
                 continue
 
-            if ex_vendor and ex_amount is not None and new_amount is not None:
-                vendor_match = (
-                    ex_vendor == new_vendor or
-                    (len(ex_vendor) > 4 and len(new_vendor) > 4 and
-                     (ex_vendor in new_vendor or new_vendor in ex_vendor))
-                )
-                amount_match = abs(float(ex_amount) - float(new_amount)) < 0.01
-                inv_match    = ex_inv == new_inv
+            if ex_vendor and new_vendor:
+                vendor_match   = (ex_vendor == new_vendor or
+                    (len(ex_vendor)>4 and len(new_vendor)>4 and
+                     (ex_vendor in new_vendor or new_vendor in ex_vendor)))
+                inv_match      = ex_inv == new_inv
+                category_match = ex_category.lower() == new_category.lower()
 
-                if vendor_match and amount_match and inv_match:
+                if vendor_match and inv_match and category_match:
                     return True, (
                         f"Duplicate in row {row_num} — "
-                        f"vendor: '{ex_vendor}' / amount: ${ex_amount} / invoice#: {ex_inv}"
+                        f"vendor: '{ex_vendor}' / invoice#: {ex_inv} / category: {ex_category}"
                     ), row_num
 
     return False, "", None
@@ -745,65 +848,87 @@ def run():
             # AI extraction
             data = extract_invoice_data(file_bytes, filename, folder_name, mime)
 
-            # Content duplicate check after AI extraction (vendor+amount+invoice#)
-            dup, reason, dup_row = is_duplicate(ws_tx, filename, data=data)
-            if dup:
-                # Check if this is a paid receipt — if so, update status
-                is_paid = data.get("is_paid", False)
-                payment_date = data.get("payment_date", None)
-                if is_paid and dup_row:
-                    log.info(f"  → PAID RECEIPT detected — updating row {dup_row} to Paid.")
-                    update_status_to_paid(ws_tx, dup_row, payment_date)
-                    results["processed"].append((
-                        folder_name, filename,
-                        0, data.get("confidence", 0)
-                    ))
-                else:
-                    log.info(f"  → DUPLICATE — {reason}. Skipping.")
-                    results["skipped"].append((folder_name, filename, f"Duplicate: {reason}"))
-                continue
             confidence = data.get("confidence", 0)
+            vendor     = data.get("vendor", "")
+            inv_num    = data.get("invoice_number", "N/A")
+            is_paid    = data.get("is_paid", False)
+            pay_date   = data.get("payment_date", None)
+            groups     = data.get("line_groups", [])
+            total_amt  = sum(g["amount"] for g in groups)
 
-            log.info(f"  Confidence: {confidence*100:.0f}% | "
-                     f"Vendor: {data.get('vendor')} | "
-                     f"Amount: ${data.get('amount')}")
+            log.info(f"  Confidence: {confidence*100:.0f}% | Vendor: {vendor} | "
+                     f"Amount: ${total_amt} | Groups: {len(groups)} | Paid: {is_paid}")
 
-            # Route based on confidence
+            # ── Paid receipt — update existing rows, do not create new ones ──
+            if is_paid:
+                updated = 0
+                for row_num in range(3, ws_tx.max_row + 1):
+                    ex_inv    = str(ws_tx.cell(row=row_num, column=11).value or "").strip()
+                    ex_vendor = str(ws_tx.cell(row=row_num, column=5).value or "").strip().lower()
+                    if ex_inv == inv_num and (
+                        ex_vendor == vendor.lower() or
+                        ex_vendor in vendor.lower() or
+                        vendor.lower() in ex_vendor
+                    ):
+                        update_status_to_paid(ws_tx, row_num, pay_date)
+                        updated += 1
+                if updated > 0:
+                    log.info(f"  → PAID RECEIPT — updated {updated} row(s) to Paid")
+                    results["skipped"].append((folder_name, filename, f"Paid receipt — updated {updated} row(s)"))
+                    move_file(drive, file_id, done_id, folder_id)
+                    continue
+                # No matching rows found — fall through and process as new entry
+
+            # ── Route based on confidence ──
             if confidence >= CONFIDENCE_THRESHOLD:
-                append_transaction(ws_tx, folder_name, data, filename)
-                results["processed"].append((
-                    folder_name, filename,
-                    data.get("amount", 0), confidence
-                ))
-                log.info(f"  → Written to Transactions sheet")
-                # Save supplier pattern to memory for future runs
-                try:
-                    import json as _json
-                    sup_file = "suppliers.json"
-                    sups = {}
-                    if os.path.exists(sup_file):
-                        with open(sup_file) as sf:
-                            sups = _json.load(sf)
-                    vname = data.get("vendor","").strip()
-                    sup_key = f"{folder_name}|{vname}"
-                    cat = data.get("category","")
-                    desc = data.get("description","")
-                    if vname and cat:
-                        prev = sups.get(sup_key, "")
-                        entry = f"{cat}: {desc}"
-                        if entry not in prev:
-                            sups[sup_key] = (prev + " | " + entry).strip(" |")
-                        with open(sup_file, "w") as sf:
+                rows_written = 0
+                for group in groups:
+                    group_data = {
+                        **data,
+                        "category":    group.get("category", "Other"),
+                        "amount":      group["amount"],
+                        "description": group.get("description", ""),
+                    }
+                    dup, reason, dup_row = is_duplicate(ws_tx, filename, data=group_data)
+                    if dup:
+                        log.info(f"  → Group duplicate ({group['category']}) — {reason}")
+                        continue
+                    append_transaction(ws_tx, folder_name, group_data, filename)
+                    rows_written += 1
+                    log.info(f"  → Written: {group['category']} ${group['amount']}")
+
+                if rows_written > 0:
+                    results["processed"].append((folder_name, filename, total_amt, confidence))
+                    log.info(f"  → {rows_written} row(s) written to Transactions sheet")
+                    # Update supplier learned patterns
+                    try:
+                        import json as _json
+                        sups = {}
+                        if os.path.exists("suppliers.json"):
+                            with open("suppliers.json") as sf:
+                                sups = _json.load(sf)
+                        sup_key = f"{folder_name}|{vendor}"
+                        profile = sups.get(sup_key, {})
+                        learned = profile.get("_learned", [])
+                        for g in groups:
+                            entry = f"{g['category']}: {g.get('description','')}"
+                            if entry not in learned:
+                                learned.append(entry)
+                        profile["_learned"] = learned
+                        sups[sup_key] = profile
+                        with open("suppliers.json", "w") as sf:
                             _json.dump(sups, sf, indent=2)
-                except Exception:
-                    pass
+                    except Exception:
+                        pass
+                else:
+                    results["skipped"].append((folder_name, filename, "All groups were duplicates"))
             else:
                 append_review(ws_review, folder_name, data, filename)
                 results["flagged"].append((
                     folder_name, filename, confidence,
                     data.get("notes", "Low confidence")
                 ))
-                log.info(f"  → Flagged for review (confidence too low)")
+                log.info(f"  → Flagged for review (confidence {confidence*100:.0f}% < 90%)")
 
             # Move file to /done
             move_file(drive, file_id, done_id, folder_id)
