@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -550,15 +549,15 @@ function initApp(){
   document.getElementById("ledger-entity").innerHTML=
     `<option value="all">All</option>`+ENTITIES.map(e=>`<option value="${e.code}">${e.code}</option>`).join("");
 
-  const pending=TRANSACTIONS.filter(t=>t.status==="Pending");
-  if(pending.length){
+  // ── Sidebar badge: always reflects ALL pending (across all time) ──────────
+  // The banner inside Firm Overview is filter-aware and updated in renderFirm()
+  const allPending=TRANSACTIONS.filter(t=>t.status==="Pending");
+  if(allPending.length){
     document.getElementById("nav-pending").innerHTML=
-      `<span class="nav-icon">⏳</span> Pending <span style="margin-left:auto;background:#fef3c7;color:#b45309;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">${pending.length}</span>`;
-    const tot=fmt$(pending.reduce((a,t)=>a+t.amount,0));
-    document.getElementById("firm-alert").style.display="flex";
-    document.getElementById("firm-alert").innerHTML=
-      `<div class="alert-banner"><span>⚠️</span><span><strong>${pending.length} pending invoice${pending.length>1?"s":""}</strong> totalling ${tot} await payment.</span>
-      <span class="alert-link no-print" onclick="document.querySelector('[data-view=pending]').click()">View →</span></div>`;
+      `<span class="nav-icon">⏳</span> Pending <span style="margin-left:auto;background:#fef3c7;color:#b45309;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700">${allPending.length}</span>`;
+  } else {
+    document.getElementById("nav-pending").innerHTML=
+      `<span class="nav-icon">⏳</span> Pending`;
   }
 
   ["firm-year","firm-month"].forEach(id=>document.getElementById(id).addEventListener("change",renderFirm));
@@ -592,11 +591,25 @@ function renderFirm(){
     ymEl.textContent="Prior: "+fmt$(prior);
   } else {ydEl.textContent="First year on record";ydEl.className="kpi-delta flat";ymEl.textContent="";}
 
-  const pend=TRANSACTIONS.filter(t=>t.status==="Pending");
+  // ── Pending: filter-aware — matches selected year/month ──────────────────
   const pendFiltered=TRANSACTIONS.filter(t=>matchPeriod(t,y,m)&&t.status==="Pending");
   const pendAmt=pendFiltered.reduce((a,t)=>a+t.amount,0);
   document.getElementById("k-pending-amt").textContent=pendAmt>0?fmt$(pendAmt):"$0";
-  document.getElementById("k-pending-meta").textContent=pendFiltered.length>0?`${pendFiltered.length} invoice${pendFiltered.length>1?"s":""} awaiting payment`:"All invoices cleared";
+  document.getElementById("k-pending-meta").textContent=
+    pendFiltered.length>0
+      ?`${pendFiltered.length} invoice${pendFiltered.length>1?"s":""} awaiting payment`
+      :"All invoices cleared";
+
+  // ── Alert banner: also filter-aware, matches KPI card exactly ────────────
+  const alertEl=document.getElementById("firm-alert");
+  if(pendFiltered.length>0){
+    alertEl.style.display="flex";
+    alertEl.innerHTML=`<div class="alert-banner"><span>⚠️</span><span><strong>${pendFiltered.length} pending invoice${pendFiltered.length>1?"s":""}</strong> totalling ${fmt$(pendAmt)} await payment.</span>
+      <span class="alert-link no-print" onclick="document.querySelector('[data-view=pending]').click()">View →</span></div>`;
+  } else {
+    alertEl.style.display="none";
+    alertEl.innerHTML="";
+  }
 
   const tc=topCategory(txns);
   if(tc){
