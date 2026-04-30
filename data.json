@@ -1,16 +1,16 @@
 {
-  "generated": "2026-04-30 13:52",
+  "generated": "2026-04-30 13:58",
   "transactions": [
     {
       "date": "2026-01-01",
-      "year": "2026",
+      "year": "2026.0",
       "month": "January",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
       "category": "Rent & Utilities",
       "desc": "Monthly MRLO and office space retainer January 2026",
       "amount": 3510.0,
-      "status": "Pending",
+      "status": "Paid",
       "source": "Drive",
       "inv": "3530",
       "filename": "PAID Invoice No. 3530- Georgetown Trust Ltd.pdf",
@@ -19,7 +19,7 @@
     },
     {
       "date": "2026-02-27",
-      "year": "2026",
+      "year": "2026.0",
       "month": "February",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -35,7 +35,7 @@
     },
     {
       "date": "2024-03-07",
-      "year": "2024",
+      "year": "2024.0",
       "month": "March",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -51,7 +51,7 @@
     },
     {
       "date": "2025-06-06",
-      "year": "2025",
+      "year": "2025.0",
       "month": "June",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -67,7 +67,7 @@
     },
     {
       "date": "2025-07-31",
-      "year": "2025",
+      "year": "2025.0",
       "month": "July",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -83,7 +83,7 @@
     },
     {
       "date": "2025-09-09",
-      "year": "2025",
+      "year": "2025.0",
       "month": "September",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -99,7 +99,7 @@
     },
     {
       "date": "2025-09-10",
-      "year": "2025",
+      "year": "2025.0",
       "month": "September",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -115,7 +115,7 @@
     },
     {
       "date": "2025-10-07",
-      "year": "2025",
+      "year": "2025.0",
       "month": "October",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -131,7 +131,7 @@
     },
     {
       "date": "2023-08-22",
-      "year": "2023",
+      "year": "2023.0",
       "month": "August",
       "entity": "GT Nevis",
       "vendor": "Joseph Rowe Attorneys-at-Law",
@@ -147,7 +147,7 @@
     },
     {
       "date": "2025-12-10",
-      "year": "2025",
+      "year": "2025.0",
       "month": "December",
       "entity": "AFLE",
       "vendor": "Tribevest, Inc.",
