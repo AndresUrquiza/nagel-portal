@@ -18,9 +18,13 @@
   "suppliers": [
     {
       "vendor_name": "Joseph Rowe Attorneys-at-Law",
-      "aliases": ["Joseph Rowe", "Joseph Rowe Attorneys", "Joseph Rowe Law"],
+      "aliases": [
+        "Joseph Rowe",
+        "Joseph Rowe Attorneys",
+        "Joseph Rowe Law"
+      ],
       "entity": "GT Nevis",
-      "vendor_context": "Registered office and corporate services provider in St. Kitts and Nevis. Acts on our behalf for government payments, license payments, and provides physical office space (registered office). They are NOT external legal counsel for unrelated matters — most invoices are operational/administrative for our Nevis entity. Do not default invoices from this vendor to Professional Services without reading line items.",
+      "vendor_context": "Registered office and corporate services provider in St. Kitts and Nevis. Acts on our behalf for government payments, license payments, and provides physical office space (registered office). They are NOT external legal counsel for unrelated matters \u2014 most invoices are operational/administrative for our Nevis entity. Do not default invoices from this vendor to Professional Services without reading line items.",
       "sender_emails": [
         "v.lewis@josephrowelaw.com",
         "rowe@josephrowelaw.com",
@@ -44,18 +48,38 @@
           "description": "Monthly retainer for MRLO and registered office space. Single line item invoice.",
           "category": "Rent & Utilities",
           "subcategory": "Registered Office Services",
-          "typical_amount_range": [3390, 3510],
+          "typical_amount_range": [
+            3390,
+            3510
+          ],
           "frequency": "monthly",
-          "keywords": ["MRLO", "office space", "monthly retainer", "registered office", "provision of MRLO"],
+          "keywords": [
+            "MRLO",
+            "office space",
+            "monthly retainer",
+            "registered office",
+            "provision of MRLO"
+          ],
           "re_line_signal": "RE: Monthly Retainer"
         },
         {
           "type_id": "incorporation_and_licensing",
           "description": "Multi-line invoice covering company incorporation, ALHL/TCSP licence applications, and related government disbursements. Almost always splits into multiple categories.",
           "category": "MIXED",
-          "typical_amount_range": [5000, 25000],
+          "typical_amount_range": [
+            5000,
+            25000
+          ],
           "frequency": "occasional",
-          "keywords": ["incorporation", "ALHL", "TCSP", "licence", "license", "alien land holding", "application"],
+          "keywords": [
+            "incorporation",
+            "ALHL",
+            "TCSP",
+            "licence",
+            "license",
+            "alien land holding",
+            "application"
+          ],
           "re_line_signal": "RE: Incorporation, ALHL, TCSP, Licence"
         }
       ],
@@ -64,32 +88,69 @@
           "rule": "MRLO / Office Space / Registered Office Fee (recurring monthly use)",
           "category": "Rent & Utilities",
           "subcategory": "Registered Office Services",
-          "match_keywords": ["MRLO", "office space", "registered office fee"]
+          "match_keywords": [
+            "MRLO",
+            "office space",
+            "registered office fee"
+          ]
         },
         {
           "rule": "Incorporation services, legal advice, licence application services (Joseph Rowe's own service fees, not government fees)",
           "category": "Professional Services",
           "subcategory": "Incorporation & Legal Services",
-          "match_keywords": ["service fee - incorporation", "legal fee", "advice and assistance", "preparation of allotment", "secretary - annual fee", "secretary (one time appointment", "service fee - alien land holding licence", "service fee - ALHL"]
+          "match_keywords": [
+            "service fee - incorporation",
+            "legal fee",
+            "advice and assistance",
+            "preparation of allotment",
+            "secretary - annual fee",
+            "secretary (one time appointment",
+            "service fee - alien land holding licence",
+            "service fee - ALHL"
+          ]
         },
         {
-          "rule": "Agent services — registered agent role",
+          "rule": "Agent services \u2014 registered agent role",
           "category": "Professional Services",
           "subcategory": "Agent Services",
-          "match_keywords": ["agent services", "registered agent", "agent fee"]
+          "match_keywords": [
+            "agent services",
+            "registered agent",
+            "agent fee"
+          ]
         },
         {
-          "rule": "Government fees, stamp duty, regulatory disbursements, due diligence fees, FSCR/FSRC compliance, TCSP/ALHL government application fees — anything paid through to government or regulator",
+          "rule": "Government fees, stamp duty, regulatory disbursements, due diligence fees, FSCR/FSRC compliance, TCSP/ALHL government application fees \u2014 anything paid through to government or regulator",
           "category": "Taxes & Licenses",
           "subcategory": "Government & Regulatory Disbursements",
-          "match_keywords": ["government", "stamp duty", "filing", "FSCR", "FSRC", "due diligence fees", "compliance officer", "money laundering reporting officer", "government application fee", "miscellaneous (adhesive stamps)", "government approved application", "class II", "TCSP license"],
+          "match_keywords": [
+            "government",
+            "stamp duty",
+            "filing",
+            "FSCR",
+            "FSRC",
+            "due diligence fees",
+            "compliance officer",
+            "money laundering reporting officer",
+            "government application fee",
+            "miscellaneous (adhesive stamps)",
+            "government approved application",
+            "class II",
+            "TCSP license"
+          ],
           "match_section": "Disbursements"
         },
         {
           "rule": "Payroll and employment costs paid on our behalf",
           "category": "Payroll",
           "subcategory": "Payroll & Employment Costs",
-          "match_keywords": ["payroll", "salary", "wages", "employment cost", "social security"]
+          "match_keywords": [
+            "payroll",
+            "salary",
+            "wages",
+            "employment cost",
+            "social security"
+          ]
         }
       ],
       "extraction_rules": {
@@ -101,11 +162,32 @@
         "category_default_warning": "Never categorize a Joseph Rowe invoice as 'Professional Services' wholesale. Always read line items individually."
       },
       "confidence_hints": {
-        "primary_signal": "line item description in the invoice table — match against line_item_categorization_rules",
-        "secondary_signal": "section header (Services vs Disbursements) — disbursements are almost always Taxes & Licenses",
+        "primary_signal": "line item description in the invoice table \u2014 match against line_item_categorization_rules",
+        "secondary_signal": "section header (Services vs Disbursements) \u2014 disbursements are almost always Taxes & Licenses",
         "tertiary_signal": "RE: line at top of invoice indicating overall purpose",
         "amount_range_check": "If the sum for a single invoice falls far outside typical ranges, flag for human review"
       }
     }
-  ]
+  ],
+  "GT Nevis|Joseph Rowe Attorneys-at-Law": {
+    "_learned": [
+      "Rent & Utilities: Monthly MRLO and office space retainer January 2026",
+      "Rent & Utilities: Monthly retainer MRLO and office space March 2026",
+      "Taxes & Licenses: Government application fee and stamp duty for ALHL TCSP licence",
+      "Rent & Utilities: Monthly retainer MRLO and office space June 2025",
+      "Rent & Utilities: Monthly retainer MRLO and office space August 2025",
+      "Professional Services: Service fees for CBI authorised agent and business licence application",
+      "Taxes & Licenses: Government consultancy licence fee and non-refundable application fee",
+      "Rent & Utilities: Monthly MRLO and office space provision September 2025",
+      "Rent & Utilities: Monthly MRLO and office space provision October 2025",
+      "Professional Services: Incorporation, ALHL, TCSP legal fees and secretary services",
+      "Rent & Utilities: Registered office fee with proportional VAT",
+      "Taxes & Licenses: Government fees, stamp duty, due diligence, TCSP license"
+    ]
+  },
+  "AFLE|Tribevest, Inc.": {
+    "_learned": [
+      "Software & Subscriptions: FMT onboarding fee for Tribevest partnership management platform"
+    ]
+  }
 }
